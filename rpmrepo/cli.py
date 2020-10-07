@@ -58,7 +58,13 @@ class CliPush:
     def run(self):
         """Run push command"""
 
-        with push.Push(self._ctx.cache) as cmd:
+        with push.Push(
+                self._ctx.cache,
+                self._ctx.args.platform_id,
+                self._ctx.args.snapshot_id,
+                self._ctx.args.aws_access_key_id,
+                self._ctx.args.aws_secret_access_key,
+            ) as cmd:
             cmd.push()
 
         return 0
@@ -146,6 +152,20 @@ class Cli(contextlib.AbstractContextManager):
             description="Push an RPM repository to remote storage",
             help="Push a full RPM Repository",
             prog=f"{self._parser.prog} push",
+        )
+        cmd_push.add_argument(
+            "--aws-access-key-id",
+            help="AWS Access Key ID",
+            metavar="ID",
+            required=True,
+            type=str,
+        )
+        cmd_push.add_argument(
+            "--aws-secret-access-key",
+            help="AWS Secret Access Key",
+            metavar="KEY",
+            required=True,
+            type=str,
         )
         cmd_push.add_argument(
             "--platform-id",
