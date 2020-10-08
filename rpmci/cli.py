@@ -8,8 +8,29 @@ provides the most basic way to execute and interact with the rpmci functions.
 
 import argparse
 import contextlib
+import logging
 import os
-import sys
+import yaml
+
+import rpmci.qemu
+
+
+class Configuration:
+    """RPMCI configuration"""
+
+    def __init__(self, yaml, config_directory):
+        # Store the directory where the configuration file exists because the paths in there are relative to its
+        # location.
+        self.config_directory = config_directory
+        self.rpms = f"{self.config_directory}/{yaml['rpms-directory']}"
+        self.image = f"{self.config_directory}/{yaml['image']}"
+
+    def __repr__(self):
+        items = ','.join([f'{key}={value}' for key, value in self.__dict__.items()])
+        return f'{type(self).__name__}({items})'
+
+    def __str__(self):
+        return self.__repr__()
 
 
 class CliDummy:
@@ -48,6 +69,14 @@ class Cli(contextlib.AbstractContextManager):
             help="Path to cache-directory to use",
             metavar="PATH",
             type=os.path.abspath,
+            required=True,
+        )
+        self._parser.add_argument(
+            "--config",
+            help="Path to YAML config file to use",
+            metavar="PATH",
+            type=os.path.abspath,
+            required=True,
         )
 
         cmd = self._parser.add_subparsers(
@@ -82,11 +111,19 @@ class Cli(contextlib.AbstractContextManager):
 
     def run(self):
         """Execute selected commands"""
+        logging.basicConfig(level=logging.INFO)
 
         if not self.args.cmd:
-            print("No subcommand specified", file=sys.stderr)
-            self._parser.print_help(file=sys.stderr)
-            ret = Cli.EXITCODE_INVALID_COMMAND
+            # Default: run test VMs
+            cfg_abspath = os.path.abspath(self.args.config)
+            logging.info(f"Using {cfg_abspath} as a configuration file")
+            with open(self.args.config, 'r') as f:
+                config = Configuration(yaml.load(f, Loader=yaml.SafeLoader), os.path.dirname(cfg_abspath))
+                logging.info(config)
+
+            rpmci.qemu.run_test(config, self.args.cache)
+
+            ret = 0
         elif self.args.cmd == "dummy":
             ret = CliDummy(self).run()
         else:
