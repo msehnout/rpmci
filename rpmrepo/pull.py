@@ -10,6 +10,7 @@ import contextlib
 import errno
 import os
 import subprocess
+import sys
 import tempfile
 
 from . import util
@@ -83,6 +84,7 @@ class Pull(contextlib.AbstractContextManager):
             "--setopt", "skip_if_unavailable=false",
         ]
 
+        sys.stdout.flush()
         proc = subprocess.Popen(cmd)
         return proc.wait()
 

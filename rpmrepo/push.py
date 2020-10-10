@@ -10,6 +10,7 @@ import contextlib
 import boto3
 import os
 import subprocess
+import sys
 
 from . import util
 
@@ -86,6 +87,7 @@ class Push(contextlib.AbstractContextManager):
         env["OS_APPLICATION_CREDENTIAL_ID"] = os_app_cred_id
         env["OS_APPLICATION_CREDENTIAL_SECRET"] = os_app_cred_secret
 
+        sys.stdout.flush()
         proc = subprocess.Popen(cmd, env=env)
         res = proc.wait()
         assert res == 0
