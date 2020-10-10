@@ -55,17 +55,30 @@ class CliPush:
     def __init__(self, ctx):
         self._ctx = ctx
 
+    def _parse_args(self):
+        for entry in self._ctx.args.to:
+            assert len(entry) == 5
+            assert entry[0] in ["data", "snapshot"]
+            if entry[0] == "data":
+                assert entry[1] in ["anon", "auth", "psi"]
+            if entry[0] == "snapshot":
+                assert entry[1] in ["s3"]
+
     def run(self):
         """Run push command"""
 
-        with push.Push(
-                self._ctx.cache,
-                self._ctx.args.platform_id,
-                self._ctx.args.snapshot_id,
-                self._ctx.args.aws_access_key_id,
-                self._ctx.args.aws_secret_access_key,
-            ) as cmd:
-            cmd.push()
+        self._parse_args()
+
+        with push.Push(self._ctx.cache) as cmd:
+            for entry in self._ctx.args.to:
+                if entry[0] == "data":
+                    if entry[1] in ["anon", "auth"]:
+                        cmd.push_data_s3(entry[1], entry[2], entry[3], entry[4])
+                    elif entry[1] == "psi":
+                        cmd.push_data_psi(entry[2], entry[3], entry[4])
+                elif entry[0] == "snapshot":
+                    if entry[1] == "s3":
+                        cmd.push_snapshot_s3(entry[2], entry[3], entry[4])
 
         return 0
 
@@ -154,31 +167,12 @@ class Cli(contextlib.AbstractContextManager):
             prog=f"{self._parser.prog} push",
         )
         cmd_push.add_argument(
-            "--aws-access-key-id",
-            help="AWS Access Key ID",
-            metavar="ID",
-            required=True,
-            type=str,
-        )
-        cmd_push.add_argument(
-            "--aws-secret-access-key",
-            help="AWS Secret Access Key",
-            metavar="KEY",
-            required=True,
-            type=str,
-        )
-        cmd_push.add_argument(
-            "--platform-id",
-            help="RPM platform ID to use",
-            metavar="ID",
-            required=True,
-            type=str,
-        )
-        cmd_push.add_argument(
-            "--snapshot-id",
-            help="RPM snapshot ID to use",
-            metavar="ID",
-            required=True,
+            "--to",
+            action="append",
+            default=[],
+            help="Target to push to",
+            metavar="DESC",
+            nargs=5,
             type=str,
         )
 
