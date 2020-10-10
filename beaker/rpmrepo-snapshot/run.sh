@@ -14,14 +14,14 @@ git \
         "https://github.com/osbuild/rpmci" \
         "src/rpmci"
 
-python3 -m "src/rpmci/rpmrepo" \
+python3 -m "src.rpmci.rpmrepo" \
         --cache "build" \
         --local "beaker" \
         pull \
                 --base-url "${RPMREPO_BASEURL}" \
                 --platform-id "${RPMREPO_PLATFORM_ID}"
 
-python3 -m "src/rpmci/rpmrepo" \
+python3 -m "src.rpmci.rpmrepo" \
         --cache "build" \
         --local "beaker" \
         index
@@ -34,7 +34,7 @@ else
         KEY_SECRET="${RPMREPO_AWS_SECRET_ACCESS_KEY}"
 fi
 
-python3 -m "src/rpmci/rpmrepo" \
+python3 -m "src.rpmci.rpmrepo" \
         --cache "build" \
         --local "beaker" \
         push \
@@ -50,3 +50,5 @@ python3 -m "src/rpmci/rpmrepo" \
                         "${RPMREPO_PLATFORM_ID}" \
                         "${KEY_ID}" \
                         "${KEY_SECRET}"
+
+rm -rf "build" "src"
