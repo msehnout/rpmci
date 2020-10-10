@@ -90,10 +90,10 @@ class Pull(contextlib.AbstractContextManager):
         """Run operation"""
 
         with util.suppress_oserror(errno.ENOENT):
-            os.unlink(os.path.join(self._path_conf, "pull.ok"))
+            os.unlink(os.path.join(self._path_conf, "repo.ok"))
 
         ret = self._run_reposync()
         if ret != 0:
             raise RuntimeError(f"Failed during dnf reposync with exitcode '{ret}'")
 
-        open(os.path.join(self._path_conf, "pull.ok"), "wb").close()
+        open(os.path.join(self._path_conf, "repo.ok"), "wb").close()
