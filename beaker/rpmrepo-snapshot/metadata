@@ -6,4 +6,4 @@ description=Create a new RPM repository snapshot
 [restraint]
 entry_point=bash ./run.sh
 max_time=12h
-dependencies=coreutils;git;make;python3-devel;python3-pip;s3cmd
+dependencies=coreutils;git;make;python3-boto3;python3-devel;python3-pip;s3cmd
