@@ -23,8 +23,8 @@ class Pull(contextlib.AbstractContextManager):
         self._baseurl = baseurl
         self._cache = cache
         self._exitstack = None
-        self._path_conf = None
-        self._path_confdir = os.path.join(cache, "conf")
+        self._path_dnfconf = None
+        self._path_conf = os.path.join(cache, "conf")
         self._path_repo = os.path.join(cache, "repo")
         self._path_root = None
         self._path_tmp = os.path.join(cache, "tmp")
@@ -36,7 +36,7 @@ class Pull(contextlib.AbstractContextManager):
             # Create our scaffolding. Note that the entire `cache` directory is
             # managed by the caller, so we explicitly do not clean it up but
             # support retaining it across calls, if the caller desires.
-            os.makedirs(self._path_confdir, exist_ok=True)
+            os.makedirs(self._path_conf, exist_ok=True)
             os.makedirs(self._path_repo, exist_ok=True)
             os.makedirs(self._path_tmp, exist_ok=True)
 
@@ -48,7 +48,7 @@ class Pull(contextlib.AbstractContextManager):
 
             # Write a `dnf.conf` with just a single repository configuration
             # which we then use for the `dnf reposync` operation.
-            with util.open_tmpfile(self._path_confdir) as ctx:
+            with util.open_tmpfile(self._path_conf) as ctx:
                 content = (
                     "[main]\n"
                     f"module_platform_id=platform:{self._platform_id}\n"
@@ -60,7 +60,7 @@ class Pull(contextlib.AbstractContextManager):
                 ctx["stream"].flush()
                 ctx["name"] = "dnf.conf"
                 ctx["replace"] = True
-            self._path_conf = os.path.join(self._path_confdir, "dnf.conf")
+            self._path_dnfconf = os.path.join(self._path_conf, "dnf.conf")
 
             # Setup succeeded, make sure to retain the exitstack for __exit__.
             self._exitstack = self._exitstack.pop_all()
@@ -74,7 +74,7 @@ class Pull(contextlib.AbstractContextManager):
     def _run_reposync(self):
         cmd = [
             "dnf", "-v", "reposync",
-            "--config", self._path_conf,
+            "--config", self._path_dnfconf,
             "--download-metadata",
             "--download-path", self._path_repo,
             "--installroot", self._path_root,
