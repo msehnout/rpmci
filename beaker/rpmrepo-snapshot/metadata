@@ -1,0 +1,9 @@
+[General]
+name=/osbuild/rpmci/rpmrepo/snapshot
+owner=David Rheinsberg <david.rheinsberg@gmail.com>
+description=Create a new RPM repository snapshot
+
+[restraint]
+entry_point=bash ./run.sh
+max_time=12h
+dependencies=coreutils;git;make;python3-devel;python3-pip;s3cmd
