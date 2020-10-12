@@ -8,21 +8,21 @@ pip3 install python-keystoneclient python-swiftclient
 mkdir \
         -p \
         "src" \
-        "/home/_build"
+        "/var/lib/rpmrepo/cache"
 git \
         clone \
         "https://github.com/osbuild/rpmci" \
         "src/rpmci"
 
 python3 -m "src.rpmci.rpmrepo" \
-        --cache "/home/_build" \
+        --cache "/var/lib/rpmrepo/cache" \
         --local "beaker" \
         pull \
                 --base-url "${RPMREPO_BASEURL}" \
                 --platform-id "${RPMREPO_PLATFORM_ID}"
 
 python3 -m "src.rpmci.rpmrepo" \
-        --cache "/home/_build" \
+        --cache "/var/lib/rpmrepo/cache" \
         --local "beaker" \
         index
 
@@ -35,7 +35,7 @@ else
 fi
 
 python3 -m "src.rpmci.rpmrepo" \
-        --cache "/home/_build" \
+        --cache "/var/lib/rpmrepo/cache" \
         --local "beaker" \
         push \
                 --to \
@@ -51,4 +51,4 @@ python3 -m "src.rpmci.rpmrepo" \
                         "${KEY_ID}" \
                         "${KEY_SECRET}"
 
-rm -rf "src" "/home/_build"
+rm -rf "/var/lib/rpmrepo/cache"
