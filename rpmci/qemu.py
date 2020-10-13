@@ -43,9 +43,6 @@ def run_test(config, cache_dir):
                     # Run setup executable (TODO: if exists)
                     ssh_run_command("admin", "127.0.0.1", test_port, private_key,
                                     f"sudo {config.rpmci_setup}")
-                    # FIXME: how do I replace this?
-                    ssh_run_command("admin", "127.0.0.1", target_port, private_key,
-                                    "sudo systemctl start osbuild-composer")
                     # Iterate over all files in the tests directory
                     ssh_run_command("admin", "127.0.0.1", test_port, private_key,
                                     f"sudo ls {config.tests_directory}")
