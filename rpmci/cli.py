@@ -8,9 +8,9 @@ provides the most basic way to execute and interact with the rpmci functions.
 
 import argparse
 import contextlib
+import json
 import logging
 import os
-import yaml
 
 import rpmci.qemu
 
@@ -18,12 +18,16 @@ import rpmci.qemu
 class Configuration:
     """RPMCI configuration"""
 
-    def __init__(self, yaml, config_directory):
+    def __init__(self, input_dict, config_directory):
         # Store the directory where the configuration file exists because the paths in there are relative to its
         # location.
         self.config_directory = config_directory
-        self.rpms = f"{self.config_directory}/{yaml['rpms-directory']}"
-        self.image = f"{self.config_directory}/{yaml['image']}"
+        self.rpms = f"{self.config_directory}/{input_dict['rpms-directory']}"
+        self.image = f"{self.config_directory}/{input_dict['image']}"
+        self.test_rpm = input_dict['test-rpm']
+        self.target_rpm = input_dict['target-rpm']
+        self.rpmci_setup = input_dict['rpmci-setup']
+        self.tests_directory = input_dict['tests-directory']
 
     def __repr__(self):
         items = ','.join([f'{key}={value}' for key, value in self.__dict__.items()])
@@ -118,7 +122,7 @@ class Cli(contextlib.AbstractContextManager):
             cfg_abspath = os.path.abspath(self.args.config)
             logging.info(f"Using {cfg_abspath} as a configuration file")
             with open(self.args.config, 'r') as f:
-                config = Configuration(yaml.load(f, Loader=yaml.SafeLoader), os.path.dirname(cfg_abspath))
+                config = Configuration(json.load(f), os.path.dirname(cfg_abspath))
                 logging.info(config)
 
             rpmci.qemu.run_test(config, self.args.cache)

@@ -26,25 +26,29 @@ def run_test(config, cache_dir):
         write_userdata_file(userdata_file, public_key)
         create_cloudinit_iso(userdata_file, metadata_file, cloudinit_file)
 
+        test_port = 2222
+        target_port = 2223
         with serve_repository(config.rpms, cache_dir):
             logging.info("Booting test VM")
-            with qemu_boot_image(config.image, cloudinit_file, 2222):
+            with qemu_boot_image(config.image, cloudinit_file, test_port):
                 logging.info("Booting target VM")
                 with qemu_boot_image(config.image, cloudinit_file, 2223):
                     logging.info("Time to SSH into the machine")
                     time.sleep(80)  # TODO: <- fix this
-                    ssh_run_command("admin", "127.0.0.1", 2222, private_key,
-                                    "sudo dnf install osbuild-composer-tests -y")
-                    ssh_run_command("admin", "127.0.0.1", 2223, private_key,
-                                    "sudo dnf install osbuild-composer -y")
-                    # WARNING: I haven't implemented the forwarding from target to test yet, I just fake it by
-                    # running composer directly on the test VM.
-                    ssh_run_command("admin", "127.0.0.1", 2222, private_key,
+                    # Install RPMs specified in the configuration
+                    ssh_run_command("admin", "127.0.0.1", test_port, private_key,
+                                    f"sudo dnf install {config.test_rpm} -y")
+                    ssh_run_command("admin", "127.0.0.1", target_port, private_key,
+                                    f"sudo dnf install {config.target_rpm} -y")
+                    # Run setup executable (TODO: if exists)
+                    ssh_run_command("admin", "127.0.0.1", test_port, private_key,
+                                    f"sudo {config.rpmci_setup}")
+                    # FIXME: how do I replace this?
+                    ssh_run_command("admin", "127.0.0.1", target_port, private_key,
                                     "sudo systemctl start osbuild-composer")
-                    ssh_run_command("admin", "127.0.0.1", 2223, private_key,
-                                    "sudo systemctl start osbuild-composer")
-                    ssh_run_command("admin", "127.0.0.1", 2222, private_key,
-                                    "sudo /usr/libexec/tests/osbuild-composer/osbuild-weldr-tests -test.v")
+                    # Iterate over all files in the tests directory
+                    ssh_run_command("admin", "127.0.0.1", test_port, private_key,
+                                    f"sudo ls {config.tests_directory}")
                     sys.stdin.readline()
 
 
