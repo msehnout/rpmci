@@ -26,6 +26,10 @@ def ssh_keys(dir):
 def ssh_run_command(user, host, port, privkey_file, command):
     cmd = [
         "ssh", f"{user}@{host}",
+        # Don't show the host's key fingerprint
+        "-o", "StrictHostKeyChecking=no",
+        # Don't use the known-hosts file because the fingerprint changes with every run of this script
+        "-o", "UserKnownHostsFile=/dev/null",
         "-p", str(port),
         "-i", privkey_file,
         command
