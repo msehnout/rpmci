@@ -1,3 +1,4 @@
+import base64
 import logging
 import subprocess
 
@@ -12,11 +13,13 @@ def write_metadata_file(filename):
         print("local-hostname: vm", file=f)
 
 
-def write_userdata_file(filename, pubkey_filename):
+def write_userdata_file(filename, pubkey_filename, privkey_filename, vm_dict):
     """Write user-data file for cloud-init."""
     logging.info("Writing user-data file")
     with open(pubkey_filename, 'r') as f:
         pubkey_string = f.read()
+    with open(privkey_filename, 'r') as f:
+        privkey_string = f.read()
     user_data = {
         "yum_repos": {
             "osbuild": {
@@ -36,6 +39,36 @@ def write_userdata_file(filename, pubkey_filename):
             "expire": False,
         },
         "sudo": "ALL=(ALL) NOPASSWD:ALL",
+        "write_files": [
+            {
+                "path": "/etc/ssh/id_rsa.pub",
+                "encoding": "b64",
+                "content": base64.b64encode(pubkey_string.encode("utf-8")).decode("utf-8"),
+                "permissions": "0644",
+            },
+            {
+                "path": "/etc/ssh/id_rsa",
+                "encoding": "b64",
+                "content": base64.b64encode(privkey_string.encode("utf-8")).decode("utf-8"),
+                "permissions": "0644",
+            },
+            {
+                "path": "/etc/ssh/ssh_config",
+                "encoding": "b64",
+                "content": base64.b64encode(f"""Host testvm
+     HostName {vm_dict["testvm"]["ip"]}
+     User admin
+     Port {vm_dict["testvm"]["port"]}
+     IdentityFile /etc/ssh/id_rsa
+Host targetvm
+     HostName {vm_dict["targetvm"]["ip"]}
+     User admin
+     Port {vm_dict["targetvm"]["port"]}
+     IdentityFile /etc/ssh/id_rsa
+                """.encode("utf-8")).decode("utf-8"),
+                "permissions": "0644",
+            }
+        ]
     }
     with open(filename, "w") as f:
         print("#cloud-config", file=f)

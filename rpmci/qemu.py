@@ -20,14 +20,24 @@ def run_test(config, cache_dir):
         userdata_file = f"{cache_dir}/cloud-init/user-data"
         metadata_file = f"{cache_dir}/cloud-init/meta-data"
         cloudinit_file = f"{cache_dir}/cloud-init/cloudinit.iso"
-        
-        os.mkdir(f"{cache_dir}/cloud-init/")
-        write_metadata_file(metadata_file)
-        write_userdata_file(userdata_file, public_key)
-        create_cloudinit_iso(userdata_file, metadata_file, cloudinit_file)
 
         test_port = 2222
         target_port = 2223
+        
+        os.mkdir(f"{cache_dir}/cloud-init/")
+        write_metadata_file(metadata_file)
+        write_userdata_file(userdata_file, public_key, private_key, {
+            "testvm": {
+                "ip": "10.0.2.2",
+                "port": f"{test_port}"
+            },
+            "targetvm": {
+                "ip": "10.0.2.2",
+                "port": f"{target_port}"
+            }
+        })
+        create_cloudinit_iso(userdata_file, metadata_file, cloudinit_file)
+
         with serve_repository(config.rpms, cache_dir):
             logging.info("Booting test VM")
             with qemu_boot_image(config.image, cloudinit_file, test_port):
@@ -41,8 +51,8 @@ def run_test(config, cache_dir):
                     ssh_run_command("admin", "127.0.0.1", target_port, private_key,
                                     f"sudo dnf install {config.target_rpm} -y")
                     # Run setup executable (TODO: if exists)
-                    ssh_run_command("admin", "127.0.0.1", test_port, private_key,
-                                    f"sudo {config.rpmci_setup}")
+                    #ssh_run_command("admin", "127.0.0.1", test_port, private_key,
+                    #                f"sudo {config.rpmci_setup}")
                     # Iterate over all files in the tests directory
                     ssh_run_command("admin", "127.0.0.1", test_port, private_key,
                                     f"sudo ls {config.tests_directory}")
