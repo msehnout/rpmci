@@ -46,17 +46,23 @@ def run_test(config, cache_dir):
                     logging.info("Time to SSH into the machine")
                     time.sleep(80)  # TODO: <- fix this
                     # Install RPMs specified in the configuration
+                    logging.info("Running dnf install in test VM")
                     ssh_run_command("admin", "127.0.0.1", test_port, private_key,
                                     f"sudo dnf install {config.test_rpm} -y")
+                    logging.info("Running dnf install in target VM")
                     ssh_run_command("admin", "127.0.0.1", target_port, private_key,
                                     f"sudo dnf install {config.target_rpm} -y")
                     # Run setup executable (TODO: if exists)
-                    #ssh_run_command("admin", "127.0.0.1", test_port, private_key,
-                    #                f"sudo {config.rpmci_setup}")
-                    # Iterate over all files in the tests directory
-                    ssh_run_command("admin", "127.0.0.1", test_port, private_key,
-                                    f"sudo ls {config.tests_directory}")
-                    sys.stdin.readline()
+                    try:
+                        logging.info("Running rpmci-setup")
+                        ssh_run_command("admin", "127.0.0.1", test_port, private_key, config.rpmci_setup)
+                        # Iterate over all files in the tests directory
+                        logging.info(f"Running all integration tests in {config.tests_directory}")
+                        ssh_run_command("admin", "127.0.0.1", test_port, private_key,
+                                        "sudo find " + config.tests_directory + " -type f -exec sudo {} \\;")
+                    except Exception as e:
+                        print(e)
+                        sys.stdin.readline()
 
 
 @contextlib.contextmanager
