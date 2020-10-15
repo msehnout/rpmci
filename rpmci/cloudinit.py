@@ -60,11 +60,13 @@ def write_userdata_file(filename, pubkey_filename, privkey_filename, vm_dict):
      User admin
      Port {vm_dict["testvm"]["port"]}
      IdentityFile /etc/ssh/id_rsa
+     StrictHostKeyChecking no
 Host targetvm
      HostName {vm_dict["targetvm"]["ip"]}
      User admin
      Port {vm_dict["targetvm"]["port"]}
      IdentityFile /etc/ssh/id_rsa
+     StrictHostKeyChecking no
                 """.encode("utf-8")).decode("utf-8"),
                 "permissions": "0644",
             }
