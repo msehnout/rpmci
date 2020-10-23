@@ -24,6 +24,7 @@ def ssh_keys(dir):
 
 
 def ssh_run_command(user, host, port, privkey_file, command):
+    logging.info(f"Running {command} at {host} over SSH")
     cmd = [
         "ssh", f"{user}@{host}",
         # Don't show the host's key fingerprint

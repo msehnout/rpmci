@@ -26,7 +26,8 @@ def run_test(config, cache_dir):
         
         os.mkdir(f"{cache_dir}/cloud-init/")
         write_metadata_file(metadata_file)
-        write_userdata_file(userdata_file, public_key, private_key, {
+        # http://10.0.2.2:8000
+        write_userdata_file(userdata_file, public_key, private_key, "http://10.0.2.2:8000", {
             "testvm": {
                 "ip": "10.0.2.2",
                 "port": f"{test_port}"
@@ -62,6 +63,7 @@ def run_test(config, cache_dir):
                                         "sudo find " + config.tests_directory + " -type f -exec sudo {} \\;")
                     except Exception as e:
                         print(e)
+                        logging.info("exception handler")
                         sys.stdin.readline()
 
 

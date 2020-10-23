@@ -13,6 +13,7 @@ import logging
 import os
 
 import rpmci.qemu
+import rpmci.aws
 
 
 class Configuration:
@@ -77,7 +78,7 @@ class Cli(contextlib.AbstractContextManager):
         )
         self._parser.add_argument(
             "--config",
-            help="Path to YAML config file to use",
+            help="Path to JSON config file to use",
             metavar="PATH",
             type=os.path.abspath,
             required=True,
@@ -104,6 +105,23 @@ class Cli(contextlib.AbstractContextManager):
             type=os.path.abspath,
         )
 
+        cmd_aws = cmd.add_parser(
+            "aws",
+            add_help=True,
+            allow_abbrev=False,
+            argument_default=None,
+            description="Run rpmci in AWS",
+            help="Run rpmci in AWS",
+            prog=f"{self._parser.prog} aws",
+        )
+        cmd_aws.add_argument(
+            "--credentials",
+            help="Path to JSON config file specifying AWS credentials and region",
+            metavar="PATH",
+            type=os.path.abspath,
+            required=False,
+        )
+
         return self._parser.parse_args(self._argv[1:])
 
     def __enter__(self):
@@ -117,19 +135,23 @@ class Cli(contextlib.AbstractContextManager):
         """Execute selected commands"""
         logging.basicConfig(level=logging.INFO)
 
+        cfg_abspath = os.path.abspath(self.args.config)
+        logging.info(f"Using {cfg_abspath} as a configuration file")
+        with open(self.args.config, 'r') as f:
+            config = Configuration(json.load(f), os.path.dirname(cfg_abspath))
+            logging.info(config)
+
         if not self.args.cmd:
             # Default: run test VMs
-            cfg_abspath = os.path.abspath(self.args.config)
-            logging.info(f"Using {cfg_abspath} as a configuration file")
-            with open(self.args.config, 'r') as f:
-                config = Configuration(json.load(f), os.path.dirname(cfg_abspath))
-                logging.info(config)
-
             rpmci.qemu.run_test(config, self.args.cache)
 
             ret = 0
         elif self.args.cmd == "dummy":
             ret = CliDummy(self).run()
+        elif self.args.cmd == "aws":
+            aws_cfg_abspath = os.path.abspath(self.args.credentials)
+            rpmci.aws.run_test(config, self.args.cache, aws_cfg_abspath)
+            ret = 0
         else:
             raise RuntimeError("Command mismatch")
 
