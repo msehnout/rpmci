@@ -67,7 +67,7 @@ class Cli(contextlib.AbstractContextManager):
             allow_abbrev=False,
             argument_default=None,
             description="RPM Based Continuous Development",
-            prog="rpmcli",
+            prog="rpmci",
         )
         self._parser.add_argument(
             "--cache",
