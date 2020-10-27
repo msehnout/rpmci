@@ -11,42 +11,157 @@ import contextlib
 import json
 import logging
 import os
+import sys
 
 import rpmci.qemu
 import rpmci.aws
 
 
-class Configuration:
+class Conf:
     """RPMCI configuration"""
 
-    def __init__(self, input_dict, config_directory):
-        # Store the directory where the configuration file exists because the paths in there are relative to its
-        # location.
-        self.config_directory = config_directory
-        self.rpms = f"{self.config_directory}/{input_dict['rpms-directory']}"
-        self.image = f"{self.config_directory}/{input_dict['image']}"
-        self.test_rpm = input_dict['test-rpm']
-        self.target_rpm = input_dict['target-rpm']
-        self.rpmci_setup = input_dict['rpmci-setup']
-        self.tests_directory = input_dict['tests-directory']
+    def __init__(self, options):
+        self.options = options
 
-    def __repr__(self):
-        items = ','.join([f'{key}={value}' for key, value in self.__dict__.items()])
-        return f'{type(self).__name__}({items})'
+    @staticmethod
+    def _invalid_key(path, key):
+        return RuntimeError(f"Invalid configuration key: {path}/{key}")
 
-    def __str__(self):
-        return self.__repr__()
+    @staticmethod
+    def _invalid_value(path, key, value):
+        return RuntimeError(f"Invalid configuration value: {path}/{key}: {value}")
+
+    @staticmethod
+    def _missing_key(path, key):
+        return RuntimeError(f"Missing configuration key: {path}/{key}")
+
+    # pylint: disable=too-many-branches
+    @classmethod
+    def _load_virtualization(cls, path, data):
+        """Parse virtualization configuration"""
+
+        conf = {}
+
+        for key in data.keys():
+            if key == "type":
+                value = data[key]
+                if value not in ["docker", "qemu", "s3"]:
+                    raise cls._invalid_value(path, key, value)
+                conf[key] = value
+            elif key == "docker":
+                conf[key] = {}
+                for subkey in data[key]:
+                    if subkey == "arguments":
+                        conf[key][subkey] = data[key][subkey]
+                    elif subkey == "image":
+                        conf[key][subkey] = data[key][subkey]
+                    elif subkey == "privileged":
+                        if not isinstance(conf[key][subkey], bool):
+                            raise cls._invalid_value(
+                                f"{path}/docker",
+                                subkey,
+                                data[key][subkey],
+                            )
+                        conf[key][subkey] = data[key][subkey]
+                    else:
+                        raise cls._invalid_key(f"{path}/{key}", subkey)
+            elif key == "qemu":
+                pass
+            elif key == "s3":
+                pass
+            else:
+                raise cls._invalid_key(path, key)
+
+        if "type" not in conf:
+            raise cls._missing_key(path, "type")
+
+        return conf
+
+    @classmethod
+    def _load_steering(cls, path, data):
+        conf = {}
+
+        for key in data.keys():
+            if key == "rpm":
+                conf[key] = data[key]
+            elif key == "tests":
+                conf[key] = {}
+                for subkey in data[key].keys():
+                    if subkey == "directory":
+                        conf[key][subkey] = data[key][subkey]
+                    elif subkey == "provision":
+                        conf[key][subkey] = data[key][subkey]
+                    else:
+                        raise cls._invalid_key(f"{path}/{key}", subkey)
+            elif key == "virtualization":
+                conf["virtualization"] = cls._load_virtualization(
+                    f"{path}/virtualization",
+                    data[key],
+                )
+            else:
+                raise cls._invalid_key(path, key)
+
+        if "virtualization" not in conf:
+            raise cls._missing_key(path, "virtualization")
+
+        return conf
+
+    @classmethod
+    def _load_target(cls, path, data):
+        conf = {}
+
+        for key in data.keys():
+            if key == "rpm":
+                conf[key] = data[key]
+            elif key == "virtualization":
+                conf["virtualization"] = cls._load_virtualization(
+                    f"{path}/virtualization",
+                    data[key],
+                )
+            else:
+                raise cls._invalid_key(path, key)
+
+        if "virtualization" not in conf:
+            raise cls._missing_key(path, "virtualization")
+
+        return conf
+
+    @classmethod
+    def load(cls, filp):
+        """Parse configuration"""
+
+        conf = {}
+        data = json.load(filp)
+        path = ""
+
+        for key in data.keys():
+            if key == "steering":
+                conf[key] = cls._load_steering(f"{path}/steering", data[key])
+            elif key == "target":
+                conf[key] = cls._load_target(f"{path}/target", data[key])
+            else:
+                raise cls._invalid_key(path, key)
+
+        if "steering" not in conf:
+            raise cls._missing_key(path, "steering")
+
+        if "target" not in conf:
+            raise cls._missing_key(path, "target")
+
+        return cls(conf)
 
 
-class CliDummy:
-    """Dummy Command"""
+class CliRun:
+    """Run Command"""
 
     def __init__(self, ctx):
         self._ctx = ctx
 
     # pylint: disable=no-self-use
     def run(self):
-        """Run dummy command"""
+        """Run command"""
+
+        _conf = Conf.load(sys.stdin)
 
         return 0
 
@@ -74,14 +189,6 @@ class Cli(contextlib.AbstractContextManager):
             help="Path to cache-directory to use",
             metavar="PATH",
             type=os.path.abspath,
-            required=True,
-        )
-        self._parser.add_argument(
-            "--config",
-            help="Path to JSON config file to use",
-            metavar="PATH",
-            type=os.path.abspath,
-            required=True,
         )
 
         cmd = self._parser.add_subparsers(
@@ -89,37 +196,14 @@ class Cli(contextlib.AbstractContextManager):
             title="RPMci Commands",
         )
 
-        cmd_dummy = cmd.add_parser(
-            "dummy",
+        _cmd_run = cmd.add_parser(
+            "run",
             add_help=True,
             allow_abbrev=False,
             argument_default=None,
-            description="Dummy operation",
-            help="Execute dummy functions",
-            prog=f"{self._parser.prog} dummy",
-        )
-        cmd_dummy.add_argument(
-            "--foobar",
-            help="Path to foobar",
-            metavar="PATH",
-            type=os.path.abspath,
-        )
-
-        cmd_aws = cmd.add_parser(
-            "aws",
-            add_help=True,
-            allow_abbrev=False,
-            argument_default=None,
-            description="Run rpmci in AWS",
-            help="Run rpmci in AWS",
-            prog=f"{self._parser.prog} aws",
-        )
-        cmd_aws.add_argument(
-            "--credentials",
-            help="Path to JSON config file specifying AWS credentials and region",
-            metavar="PATH",
-            type=os.path.abspath,
-            required=False,
+            description="Run RPM CI",
+            help="Run RPM CI with a given configuration",
+            prog=f"{self._parser.prog} run",
         )
 
         return self._parser.parse_args(self._argv[1:])
@@ -135,23 +219,12 @@ class Cli(contextlib.AbstractContextManager):
         """Execute selected commands"""
         logging.basicConfig(level=logging.INFO)
 
-        cfg_abspath = os.path.abspath(self.args.config)
-        logging.info(f"Using {cfg_abspath} as a configuration file")
-        with open(self.args.config, 'r') as f:
-            config = Configuration(json.load(f), os.path.dirname(cfg_abspath))
-            logging.info(config)
-
         if not self.args.cmd:
-            # Default: run test VMs
-            rpmci.qemu.run_test(config, self.args.cache)
-
-            ret = 0
-        elif self.args.cmd == "dummy":
-            ret = CliDummy(self).run()
-        elif self.args.cmd == "aws":
-            aws_cfg_abspath = os.path.abspath(self.args.credentials)
-            rpmci.aws.run_test(config, self.args.cache, aws_cfg_abspath)
-            ret = 0
+            print("No subcommand specified", file=sys.stderr)
+            self._parser.print_help(file=sys.stderr)
+            ret = Cli.EXITCODE_INVALID_COMMAND
+        elif self.args.cmd == "run":
+            ret = CliRun(self).run()
         else:
             raise RuntimeError("Command mismatch")
 
