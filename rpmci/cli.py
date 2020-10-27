@@ -136,9 +136,9 @@ class Conf:
 
         for key in data.keys():
             if key == "steering":
-                conf[key] = cls._load_steering(f"{path}/steering", data[key])
+                conf[key] = cls._load_steering(f"{path}/{key}", data[key])
             elif key == "target":
-                conf[key] = cls._load_target(f"{path}/target", data[key])
+                conf[key] = cls._load_target(f"{path}/{key}", data[key])
             else:
                 raise cls._invalid_key(path, key)
 
