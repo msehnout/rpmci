@@ -20,6 +20,10 @@ RPMREPO_AWS_SECRET_ACCESS_KEY=""
 RPMREPO_OS_APP_CRED_ID=""
 RPMREPO_OS_APP_CRED_SECRET=""
 
+if [[ -f "./creds.rpmrepo.sh" ]] ; then
+        source "./creds.rpmrepo.sh"
+fi
+
 task_rpmrepo() {
         STORAGE="$1"
         PLATFORM_ID="$2"
