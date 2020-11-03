@@ -13,8 +13,7 @@ import logging
 import os
 import sys
 
-import rpmci.qemu
-import rpmci.aws
+from . import virt_docker
 
 
 class Conf:
@@ -85,6 +84,28 @@ class Conf:
         return conf
 
     @classmethod
+    def _load_credentials(cls, path, data):
+        conf = {}
+
+        for key in data.keys():
+            if key == "aws":
+                conf[key] = {}
+                for subkey in data[key].keys():
+                    if subkey == "access-key-id":
+                        conf[key][subkey] = data[key][subkey]
+                    elif subkey == "secret-access-key":
+                        conf[key][subkey] = data[key][subkey]
+                    else:
+                        raise cls._invalid_key(f"{path}/{key}", subkey)
+            else:
+                raise cls._invalid_key(path, key)
+
+        if "virtualization" not in conf:
+            raise cls._missing_key(path, "virtualization")
+
+        return conf
+
+    @classmethod
     def _load_steering(cls, path, data):
         conf = {}
 
@@ -118,7 +139,18 @@ class Conf:
         conf = {}
 
         for key in data.keys():
-            if key == "rpm":
+            if key == "invoke":
+                if not (
+                    isinstance(data[key], list) and
+                    all(isinstance(entry, str) for entry in data[key])
+                ):
+                    raise cls._invalid_value(
+                        path,
+                        key,
+                        data[key],
+                    )
+                conf[key] = data[key]
+            elif key == "rpm":
                 conf[key] = data[key]
             elif key == "virtualization":
                 conf["virtualization"] = cls._load_virtualization(
@@ -142,7 +174,9 @@ class Conf:
         path = ""
 
         for key in data.keys():
-            if key == "steering":
+            if key == "credentials":
+                conf[key] = cls._load_credentials(f"{path}/{key}", data[key])
+            elif key == "steering":
                 conf[key] = cls._load_steering(f"{path}/{key}", data[key])
             elif key == "target":
                 conf[key] = cls._load_target(f"{path}/{key}", data[key])
@@ -161,11 +195,54 @@ class CliRun:
     def __init__(self, ctx):
         self._ctx = ctx
 
-    # pylint: disable=no-self-use
+    def _virtualize(self, options):
+        vtype = options["type"]
+        if vtype == "docker":
+            return virt_docker.VirtDocker(
+                options["docker"]["image"],
+                options["docker"].get("privileged", False),
+            )
+        else:
+            raise ValueError(f"Unknown virtualization type: {vtype}")
+
     def run(self):
         """Run command"""
 
-        _conf = Conf.load(sys.stdin)
+        conf = Conf.load(sys.stdin)
+        steering = None
+        target = self._virtualize(conf.options["target"]["virtualization"])
+
+        if "steering" in conf.options:
+            steering = self._virtualize(
+                conf.options["steering"]["virtualization"]
+            )
+
+        #
+        # Instantiate the target machine, followed by the steering machine, if
+        # requested. Once the machines are up, we execute the test procedure:
+        #
+        #   * If rpms where specified, we install them into the respective
+        #     image by providing our own temporary rpm repository.
+        #
+        #   * If an explicit `invoke` line was specified, we execute it. This
+        #     is an easy way to just execute a single command in the respective
+        #     machine, especially useful if the images already contain the
+        #     custom configurations and/or RPMs.
+        #
+        #   * If a test-directory is specified, we iterate it and execute all
+        #     binaries in it. We sort them in ascending alphabetical order, so
+        #     their execution order is fixed.
+        #
+        with target:
+            with steering or contextlib.nullcontext():
+                # XXX: Implement the `rpm` installation step.
+
+                if "invoke" in conf.options["target"]:
+                    res = target.run(conf.options["target"]["invoke"])
+                    if res != 0:
+                        raise RuntimeError(f"Target invocation failed: {res}")
+
+                # XXX: Implement the `test` step.
 
         return 0
 
