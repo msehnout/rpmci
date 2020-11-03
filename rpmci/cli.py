@@ -66,6 +66,10 @@ class Conf:
                         conf[key][subkey] = data[key][subkey]
                     else:
                         raise cls._invalid_key(f"{path}/{key}", subkey)
+
+                if "image" not in conf[key]:
+                    raise cls._missing_key(f"{path}/{key}", "image")
+
             elif key == "qemu":
                 pass
             elif key == "s3":
@@ -75,6 +79,8 @@ class Conf:
 
         if "type" not in conf:
             raise cls._missing_key(path, "type")
+        if conf["type"] not in conf:
+            raise cls._missing_key(path, conf["type"])
 
         return conf
 
@@ -142,9 +148,6 @@ class Conf:
                 conf[key] = cls._load_target(f"{path}/{key}", data[key])
             else:
                 raise cls._invalid_key(path, key)
-
-        if "steering" not in conf:
-            raise cls._missing_key(path, "steering")
 
         if "target" not in conf:
             raise cls._missing_key(path, "target")
