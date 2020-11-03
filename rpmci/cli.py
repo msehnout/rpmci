@@ -48,6 +48,7 @@ class Conf:
                 if value not in ["docker", "qemu", "s3"]:
                     raise cls._invalid_value(path, key, value)
                 conf[key] = value
+
             elif key == "docker":
                 conf[key] = {}
                 for subkey in data[key]:
@@ -56,7 +57,7 @@ class Conf:
                     elif subkey == "image":
                         conf[key][subkey] = data[key][subkey]
                     elif subkey == "privileged":
-                        if not isinstance(conf[key][subkey], bool):
+                        if not isinstance(data[key][subkey], bool):
                             raise cls._invalid_value(
                                 f"{path}/docker",
                                 subkey,
