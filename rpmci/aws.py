@@ -14,7 +14,13 @@ import rpmci.cloudinit
 import rpmci.rpm
 import rpmci.ssh
 
-from rpmci.instance import Instance
+
+class Instance:
+    """Instance represents a running VM."""
+    def __init__(self, name: str, ip: str, port: int):
+        logging.info(f"New instance {name} with SSH access at {ip}:{port}")
+        self.ip = ip
+        self.port = port
 
 
 def _log_aws_create_artifact(msg: str):
@@ -32,17 +38,10 @@ def _log_aws_delete_artifact(msg: str):
 
 
 class AWSSession:
-    def __init__(self, access_key_id: str, secret_access_key: str, bucket_name: str, region_name: str, cache_dir: str,
-                 test_id: str):
+    def __init__(self, access_key_id: str, secret_access_key: str, bucket_name: str, region_name: str):
         """
-
         Parameters
         ----------
-        access_key_id
-        secret_access_key
-        region_name
-        bucket_name
-        cache_dir
         test_id is a string used when creating CI artifacts, this is provided by the caller
         """
         logging.info("Creating AWS session")
@@ -51,9 +50,9 @@ class AWSSession:
             aws_secret_access_key=secret_access_key,
             region_name=region_name
         )
-        self.cache_dir: str = cache_dir
         self.bucket_name: str = bucket_name
-        self.test_id: str = test_id
+        self.cache_dir: Union[str, None] = None
+        self.test_id: Union[str, None] = None
         self.priv_key_file: Union[Path, None] = None
         self.sg_name: Union[str, None] = None
         self.ec2_keypair_name: Union[str, None] = None
@@ -128,11 +127,11 @@ class AWSSession:
         """Run an instance in EC2 and configure it using the cloud-init file."""
         _log_aws_create_artifact("EC2 instance")
         ec2 = self.session.resource("ec2")
-        instances = ec2.create_instances(ImageId="ami-02e7bb5cea59dbbd8",  # FIXME: dynamically find this id
+        instances = ec2.create_instances(ImageId="ami-0911ed36164460ba6",  # FIXME: dynamically find this id
                                          KeyName=self.ec2_keypair_name,
                                          MinCount=1,
                                          MaxCount=1,
-                                         InstanceType='t2.micro', # TODO: make this configurable
+                                         InstanceType='t2.small',  # TODO: make this configurable
                                          # TODO: bigger machine for target because of disk images
                                          SecurityGroups=[self.sg_name],
                                          UserData=user_data)
@@ -179,9 +178,10 @@ class AWSSession:
             rpmci.ssh.ssh_run_command("admin", instance, 22, private_key,
                                       f"sudo sed -i 's|TARGETVM|{target_instance_ip}|' /etc/ssh/ssh_config")
 
-    def run(self, config, cache_dir):
+    def run(self, config, cache_dir, test_id):
+        self.cache_dir = cache_dir
+        self.test_id = test_id
         logging.info("Running rpmci in AWS")
-        test_id = "test_id"
         repodir = rpmci.rpm.copy_rpms_to_cache(config.rpms, cache_dir)
         with self._ephemeral_ec2_keypair() as (private_key, public_key):
             with self._s3_repository(repodir) as s3repo_url:
@@ -213,8 +213,6 @@ class AWSSession:
                             rpmci.ssh.ssh_run_command("admin", test_instance.ip, 22, private_key, config.rpmci_setup)
                             # Iterate over all files in the tests directory
                             logging.info(f"Running integration test {config.test_script}")
-                            # TODO: we need to change this because the test cases will not simply work in the target <-
-                            # TODO: -> test scenario
                             rpmci.ssh.ssh_run_command("admin", test_instance.ip, 22, private_key,
                                                       f"sudo {config.test_script}")
 
