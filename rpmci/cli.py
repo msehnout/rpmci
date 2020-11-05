@@ -177,6 +177,38 @@ class Conf:
         return conf
 
     @classmethod
+    def _load_rpm_repo(cls, path, data):
+        conf = {}
+
+        for key in data.keys():
+            if key == "provider":
+                conf[key] = data[key]
+            elif key == "local_http":
+                conf[key] = {}
+                for subkey in data[key].keys():
+                    if subkey == "ip":
+                        conf[key][subkey] = data[key][subkey]
+                    elif subkey == "port":
+                        conf[key][subkey] = data[key][subkey]
+                    else:
+                        raise cls._invalid_key(f"{path}/{key}", subkey)
+
+                for mandatory_subkey in ["ip", "port"]:
+                    if mandatory_subkey not in conf[key]:
+                        raise cls._missing_key(f"{path}/{key}", mandatory_subkey)
+
+            elif key == "dir_with_rpms":
+                conf[key] = data[key]
+            else:
+                raise cls._invalid_key(path, key)
+
+        for mandatory_subkey in ["provider", "dir_with_rpms"]:
+            if mandatory_subkey not in conf:
+                raise cls._missing_key(path, "provider")
+
+        return conf
+
+    @classmethod
     def load(cls, filp):
         """Parse configuration"""
 
@@ -191,6 +223,8 @@ class Conf:
                 conf[key] = cls._load_steering(f"{path}/{key}", data[key])
             elif key == "target":
                 conf[key] = cls._load_target(f"{path}/{key}", data[key])
+            elif key == "rpm_repo":
+                conf[key] = cls._load_rpm_repo(f"{path}/{key}", data[key])
             else:
                 raise cls._invalid_key(path, key)
 
