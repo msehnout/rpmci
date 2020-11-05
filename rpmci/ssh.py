@@ -4,35 +4,35 @@ import os
 import subprocess
 
 
-@contextlib.contextmanager
-def ssh_keys(dir):
-    """Generate ephemeral SSH keys for use in the test."""
-    logging.info("Generating SSH keys")
-    # Generate the keys
-    subprocess.run([
-        "ssh-keygen",
-        "-t", "rsa",
-        "-N", "",
-        "-f", f"{dir}/id_rsa"
-    ], check=True)
-    try:
-        yield f"{dir}/id_rsa", f"{dir}/id_rsa.pub"
-    finally:
-        os.unlink(f"{dir}/id_rsa")
-        os.unlink(f"{dir}/id_rsa.pub")
-        pass
+class SshKeys:
+    def __init__(self, cache_dir):
+        logging.info("Generating SSH keys")
+        subprocess.run([
+            "ssh-keygen",
+            "-t", "rsa",
+            "-N", "",
+            "-f", f"{cache_dir}/id_rsa"
+        ], check=True)
+        self.private_key = f"{cache_dir}/id_rsa"
+        self.public_key = f"{cache_dir}/id_rsa.pub"
+
+    def __del__(self):
+        os.unlink(self.private_key)
+        os.unlink(self.public_key)
 
 
-def ssh_run_command(user, host, port, privkey_file, command):
-    logging.info(f"Running {command} at {host} over SSH")
-    cmd = [
-        "ssh", f"{user}@{host}",
-        # Don't show the host's key fingerprint
-        "-o", "StrictHostKeyChecking=no",
-        # Don't use the known-hosts file because the fingerprint changes with every run of this script
-        "-o", "UserKnownHostsFile=/dev/null",
-        "-p", str(port),
-        "-i", privkey_file,
-        command
-    ]
-    subprocess.run(cmd, check=True)
+class SshCommand:
+    def __init__(self, user, host, port, privkey_file, command, **options):
+        opts = [["-o", f"{key}={value}"] for key, value in options.items()]
+        flat_opts = [opt for sublist in opts for opt in sublist]
+        self.cmd = ["ssh", f"{user}@{host}"]
+        self.cmd += flat_opts
+        self.cmd += [
+            "-p", str(port),
+            "-i", privkey_file,
+            command
+        ]
+        print(self.cmd)
+
+    def run(self):
+        subprocess.run(self.cmd, check=True)
