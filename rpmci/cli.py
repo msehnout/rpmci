@@ -44,7 +44,7 @@ class Conf:
         for key in data.keys():
             if key == "type":
                 value = data[key]
-                if value not in ["docker", "qemu", "s3"]:
+                if value not in ["docker", "qemu", "ec2"]:
                     raise cls._invalid_value(path, key, value)
                 conf[key] = value
 
@@ -70,8 +70,19 @@ class Conf:
                     raise cls._missing_key(f"{path}/{key}", "image")
 
             elif key == "qemu":
-                pass
-            elif key == "s3":
+                conf[key] = {}
+                for subkey in data[key]:
+                    if subkey == "image":
+                        conf[key][subkey] = data[key][subkey]
+                    elif subkey == "ssh_port":
+                        conf[key][subkey] = data[key][subkey]
+                    else:
+                        raise cls._invalid_key(f"{path}/{key}", subkey)
+
+                for mandatory_subkey in ["image", "ssh_port"]:
+                    if mandatory_subkey not in conf[key]:
+                        raise cls._missing_key(f"{path}/{key}", mandatory_subkey)
+            elif key == "ec2":
                 pass
             else:
                 raise cls._invalid_key(path, key)
