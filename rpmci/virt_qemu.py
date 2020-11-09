@@ -1,6 +1,7 @@
 import contextlib
 import logging
 import subprocess
+import time
 
 from .ssh import SshCommand
 
@@ -21,12 +22,13 @@ class VirtQemu(contextlib.AbstractContextManager):
                "-snapshot",
                "-cpu", "host",
                "-net", "nic,model=virtio", "-net", f"user,hostfwd=tcp::{self.ssh_port}-:22",
-               "-cdrom", self.cloudinit_iso_file,
+               "-cdrom", str(self.cloudinit_iso_file),
                # "-nographic",
-               self.image
+               str(self.image)
                ]
         logging.info(f"running qemu command: {' '.join(cmd)}")
         self.vm_process = subprocess.Popen(cmd)  # , stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        time.sleep(50)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.vm_process.kill()

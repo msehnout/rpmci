@@ -15,6 +15,10 @@ class SshKeys:
         ], check=True)
         self.private_key = f"{cache_dir}/id_rsa"
         self.public_key = f"{cache_dir}/id_rsa.pub"
+        with open(self.private_key) as f:
+            self.private_key_str = f.read()
+        with open(self.public_key) as f:
+            self.public_key_str = f.read()
 
     def __del__(self):
         os.unlink(self.private_key)

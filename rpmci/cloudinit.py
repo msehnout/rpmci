@@ -1,5 +1,6 @@
 import base64
 import logging
+import pathlib
 import subprocess
 
 from pathlib import Path
@@ -21,6 +22,7 @@ class CloudInit:
             "enabled": True,
             "gpgcheck": False,
         }
+        return self
 
     def add_user(self, username: str, password: str, ssh_pubkey: str):
         self.users += [{
@@ -33,12 +35,14 @@ class CloudInit:
             },
             "sudo": "ALL=(ALL) NOPASSWD:ALL",
         }]
+        return self
 
     def add_ssh_key_pair(self, public_key: str, private_key: str):
         self.ssh_keypair = {
             "public_key": public_key,
             "private_key": private_key,
         }
+        return self
 
     def add_ssh_config(self, host_alias: str, hostname: str, port: int, username: str):
         """Create new entry in /etc/ssh_config.
@@ -57,6 +61,7 @@ class CloudInit:
             "IdentityFile": "/etc/ssh/id_rsa",
             "StrictHostKeyChecking": "no",
         }
+        return self
 
     def get_userdata_str(self):
         write_files = []
@@ -108,20 +113,20 @@ class CloudInit:
             f.write(content)
 
     @staticmethod
-    def _write_metadata_file(filename: Path):
+    def _write_metadata_file(filename: Path, vm_name: str):
         """Write meta-data file for cloud-init."""
         logging.info("Writing meta-data file")
         with open(filename, "w") as f:
             print("instance-id: nocloud", file=f)
-            print("local-hostname: vm", file=f)
+            print(f"local-hostname: {vm_name}", file=f)
 
-    def get_iso(self, cache_dir: Path, iso_file_name: str) -> Path:
+    def get_iso(self, cache_dir: Path, vm_name: str) -> Path:
         logging.info("Generating cloud-init ISO file")
-        cloudinit_file = cache_dir.joinpath(iso_file_name)
+        cloudinit_file = cache_dir.joinpath(f"{vm_name}.iso")
         userdata_file = cache_dir.joinpath("user-data")
         self._write_userdata_file(userdata_file, self.get_userdata_str())
         metadata_file = cache_dir.joinpath("meta-data")
-        self._write_metadata_file(metadata_file)
+        self._write_metadata_file(metadata_file, vm_name)
         # Create an ISO that cloud-init can consume with userdata.
         subprocess.run(["genisoimage",
                         "-quiet",
@@ -135,7 +140,7 @@ class CloudInit:
                         userdata_file,
                         metadata_file],
                        check=True)
-        return cloudinit_file
+        return pathlib.Path(cloudinit_file)
 
 
 def test_CloudInit_get_userdata_str():

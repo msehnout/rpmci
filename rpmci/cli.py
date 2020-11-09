@@ -11,9 +11,10 @@ import contextlib
 import json
 import logging
 import os
+import pathlib
 import sys
 
-from . import virt_docker
+from . import virt_docker, virt_qemu, ssh, cloudinit, repo_local_http
 
 
 class Conf:
@@ -239,13 +240,52 @@ class CliRun:
 
     def __init__(self, ctx):
         self._ctx = ctx
+        self.cache = pathlib.Path(self._ctx.args.cache)
+        self.ssh_keys = None
+        self.rpm_repository = None
 
-    def _virtualize(self, options):
+    def _serve_rpm_repository(self, options):
+        provider = options["provider"]
+        if provider == "local_http":
+            return repo_local_http.RepoLocalHttp(
+                self.cache,
+                options["dir_with_rpms"],
+                "rpmci",
+                options["local_http"]["ip"],
+                options["local_http"]["port"]
+            )
+        else:
+            raise ValueError(f"Unknown RPM repo provider: {provider}")
+
+    def _virtualize(self, options, target_options=None):
+        """
+        Parameters
+        ----------
+        options: Dict[Any, Any]
+        target_options: Union[Dict[Any, Any], None] specify a way to reach the target machine
+        """
         vtype = options["type"]
         if vtype == "docker":
             return virt_docker.VirtDocker(
                 options["docker"]["image"],
                 options["docker"].get("privileged", False),
+            )
+        elif vtype == "qemu":
+            cloud_init = cloudinit.CloudInit() \
+                .add_user("admin", "foobar", self.ssh_keys.public_key_str) \
+                .add_repo(self.rpm_repository.name, self.rpm_repository.baseurl)
+            if target_options is not None:
+                vm_name = "steering"
+                cloud_init\
+                    .add_ssh_key_pair(self.ssh_keys.public_key_str, self.ssh_keys.private_key_str)\
+                    .add_ssh_config("targetvm", "10.0.2.2", target_options["qemu"]["ssh_port"], "admin")
+            else:
+                vm_name = "target"
+            return virt_qemu.VirtQemu(
+                options["qemu"]["image"],
+                options["qemu"]["ssh_port"],
+                cloudinit_iso_file=cloud_init.get_iso(self.cache, vm_name),
+                private_key_file=self.ssh_keys.private_key
             )
         else:
             raise ValueError(f"Unknown virtualization type: {vtype}")
@@ -254,12 +294,21 @@ class CliRun:
         """Run command"""
 
         conf = Conf.load(sys.stdin)
+
+        self.ssh_keys = ssh.SshKeys(self.cache)
+
+        if "rpm_repo" in conf.options:
+            self.rpm_repository = self._serve_rpm_repository(
+                conf.options["rpm_repo"]
+            )
+
         steering = None
         target = self._virtualize(conf.options["target"]["virtualization"])
 
         if "steering" in conf.options:
             steering = self._virtualize(
-                conf.options["steering"]["virtualization"]
+                conf.options["steering"]["virtualization"],
+                conf.options["target"]["virtualization"]
             )
 
         #
@@ -278,16 +327,17 @@ class CliRun:
         #     binaries in it. We sort them in ascending alphabetical order, so
         #     their execution order is fixed.
         #
-        with target:
-            with steering or contextlib.nullcontext():
-                # XXX: Implement the `rpm` installation step.
+        with self.rpm_repository or contextlib.nullcontext():
+            with target:
+                with steering or contextlib.nullcontext():
+                    # XXX: Implement the `rpm` installation step.
 
-                if "invoke" in conf.options["target"]:
-                    res = target.run(conf.options["target"]["invoke"])
-                    if res != 0:
-                        raise RuntimeError(f"Target invocation failed: {res}")
+                    if "invoke" in conf.options["target"]:
+                        res = target.run(conf.options["target"]["invoke"])
+                        if res != 0:
+                            raise RuntimeError(f"Target invocation failed: {res}")
 
-                # XXX: Implement the `test` step.
+                    # XXX: Implement the `test` step.
 
         return 0
 
