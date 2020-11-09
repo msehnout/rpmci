@@ -2,7 +2,7 @@ import contextlib
 import logging
 import subprocess
 
-from .ssh import ssh_run_command
+from .ssh import SshCommand
 
 
 class VirtQemu(contextlib.AbstractContextManager):
@@ -32,4 +32,5 @@ class VirtQemu(contextlib.AbstractContextManager):
         self.vm_process.kill()
 
     def run(self, args):
-        ssh_run_command("admin", "127.0.0.1", self.ssh_port, self.private_key_file, "".join(args))
+        SshCommand("admin", "127.0.0.1", self.ssh_port, self.private_key_file, " ".join(args),
+                   StrictHostKeyChecking="no", UserKnownHostsFile="/dev/null").run()
