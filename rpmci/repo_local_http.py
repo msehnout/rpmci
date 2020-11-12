@@ -16,11 +16,11 @@ import time
 
 class RepoLocalHttp(contextlib.AbstractContextManager):
 
-    def __init__(self, cache_dir, rpms_directory, repo_name, base_url, port):
+    def __init__(self, cache_dir, rpms_directory, repo_name, hostname, port):
         self.cache_dir = cache_dir
         self.rpms_directory = rpms_directory
         self.name = repo_name
-        self.baseurl = base_url
+        self.baseurl = f"http://{hostname}:{port}"
         self.port = port
         self.http_thread = None
         self.httpd = None

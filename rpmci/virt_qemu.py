@@ -23,7 +23,7 @@ class VirtQemu(contextlib.AbstractContextManager):
                "-cpu", "host",
                "-net", "nic,model=virtio", "-net", f"user,hostfwd=tcp::{self.ssh_port}-:22",
                "-cdrom", str(self.cloudinit_iso_file),
-               # "-nographic",
+               #"-nographic",
                str(self.image)
                ]
         logging.info(f"running qemu command: {' '.join(cmd)}")
@@ -33,6 +33,6 @@ class VirtQemu(contextlib.AbstractContextManager):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.vm_process.kill()
 
-    def run(self, args):
-        SshCommand("admin", "127.0.0.1", self.ssh_port, self.private_key_file, " ".join(args),
+    def run(self, args) -> int:
+        return SshCommand("admin", "127.0.0.1", self.ssh_port, self.private_key_file, " ".join(args),
                    StrictHostKeyChecking="no", UserKnownHostsFile="/dev/null").run()

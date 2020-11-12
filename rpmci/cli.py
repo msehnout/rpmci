@@ -13,6 +13,7 @@ import logging
 import os
 import pathlib
 import sys
+import time
 
 from . import virt_docker, virt_qemu, ssh, cloudinit, repo_local_http
 
@@ -122,7 +123,18 @@ class Conf:
         conf = {}
 
         for key in data.keys():
-            if key == "rpm":
+            if key == "invoke":
+                if not (
+                    isinstance(data[key], list) and
+                    all(isinstance(entry, str) for entry in data[key])
+                ):
+                    raise cls._invalid_value(
+                        path,
+                        key,
+                        data[key],
+                    )
+                conf[key] = data[key]
+            elif key == "rpm":
                 conf[key] = data[key]
             elif key == "tests":
                 conf[key] = {}
@@ -178,6 +190,32 @@ class Conf:
         return conf
 
     @classmethod
+    def _load_test_invocation(cls, path, data):
+        conf = {}
+
+        for key in data.keys():
+            if key == "invoke":
+                if not (
+                        isinstance(data[key], list) and
+                        all(isinstance(entry, str) for entry in data[key])
+                ):
+                    raise cls._invalid_value(
+                        path,
+                        key,
+                        data[key],
+                    )
+                conf[key] = data[key]
+            elif key == "machine":
+                conf[key] = data[key]
+            else:
+                raise cls._invalid_key(path, key)
+
+        if "invoke" not in conf:
+            raise cls._missing_key(path, "invoke")
+
+        return conf
+
+    @classmethod
     def _load_rpm_repo(cls, path, data):
         conf = {}
 
@@ -226,6 +264,8 @@ class Conf:
                 conf[key] = cls._load_target(f"{path}/{key}", data[key])
             elif key == "rpm_repo":
                 conf[key] = cls._load_rpm_repo(f"{path}/{key}", data[key])
+            elif key == "test_invocation":
+                conf[key] = cls._load_test_invocation(f"{path}/{key}", data[key])
             else:
                 raise cls._invalid_key(path, key)
 
@@ -272,7 +312,7 @@ class CliRun:
             )
         elif vtype == "qemu":
             cloud_init = cloudinit.CloudInit() \
-                .add_user("admin", "foobar", self.ssh_keys.public_key_str) \
+                .set_user("admin", "foobar", self.ssh_keys.public_key_str) \
                 .add_repo(self.rpm_repository.name, self.rpm_repository.baseurl)
             if target_options is not None:
                 vm_name = "steering"
@@ -330,14 +370,34 @@ class CliRun:
         with self.rpm_repository or contextlib.nullcontext():
             with target:
                 with steering or contextlib.nullcontext():
-                    # XXX: Implement the `rpm` installation step.
+                    if "rpm" in conf.options["target"]:
+                        res = target.run(["sudo", "dnf", "install", conf.options["target"]["rpm"], "-y"])
+                        if res != 0:
+                            raise RuntimeError(f"Target RPM installation failed: {res}")
+
+                    if "rpm" in conf.options["steering"]:
+                        res = steering.run(["sudo", "dnf", "install", conf.options["steering"]["rpm"], "-y"])
+                        if res != 0:
+                            raise RuntimeError(f"Steering RPM installation failed: {res}")
+
+                    if "invoke" in conf.options["steering"]:
+                        res = steering.run(conf.options["steering"]["invoke"])
+                        if res != 0:
+                            raise RuntimeError(f"Steering invocation failed: {res}")
 
                     if "invoke" in conf.options["target"]:
                         res = target.run(conf.options["target"]["invoke"])
                         if res != 0:
                             raise RuntimeError(f"Target invocation failed: {res}")
 
-                    # XXX: Implement the `test` step.
+                    if "test_invocation" in conf.options:
+                        if conf.options["test_invocation"]["machine"] == "steering":
+                            res = steering.run(conf.options["test_invocation"]["invoke"])
+                            if res != 0:
+                                raise RuntimeError(f"Running test in steering machine failed: {res}")
+
+                    logging.info("Going to sleep for a while")
+                    time.sleep(600)
 
         return 0
 

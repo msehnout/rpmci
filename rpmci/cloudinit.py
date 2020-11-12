@@ -11,7 +11,7 @@ import yaml
 class CloudInit:
     def __init__(self):
         self.repos = {}
-        self.users = []
+        self.user = {}
         self.ssh_keypair = None
         self.ssh_configs = {}
 
@@ -24,17 +24,11 @@ class CloudInit:
         }
         return self
 
-    def add_user(self, username: str, password: str, ssh_pubkey: str):
-        self.users += [{
-            "user": username,
-            "password": password,
-            "ssh_authorized_keys": [ssh_pubkey],
-            "ssh_pwauth": True,
-            "chpasswd": {
-                "expire": False,
-            },
-            "sudo": "ALL=(ALL) NOPASSWD:ALL",
-        }]
+    def set_user(self, username: str, password: str, ssh_pubkey: str):
+        self.user["user"] = username
+        self.user["password"] = password
+        self.user["ssh_authorized_keys"] = [ssh_pubkey]
+        self.user["sudo"] = "ALL=(ALL) NOPASSWD:ALL"
         return self
 
     def add_ssh_key_pair(self, public_key: str, private_key: str):
@@ -68,8 +62,13 @@ class CloudInit:
         user_data = {}
         if len(self.repos.keys()) > 0:
             user_data["yum_repos"] = self.repos
-        if len(self.users) > 0:
-            user_data["users"] = self.users
+        if len(self.user.keys()) > 0:
+            user_data["chpasswd"] = {
+                "expire": False,
+            }
+            user_data["ssh_pwauth"] = True
+            for k,v in self.user.items():
+                user_data[k] = v
         if self.ssh_keypair is not None:
             write_files += [
                 {
@@ -137,8 +136,8 @@ class CloudInit:
                         "-rock",
                         "-quiet",
                         "-graft-points",
-                        userdata_file,
-                        metadata_file],
+                        str(userdata_file),
+                        str(metadata_file)],
                        check=True)
         return pathlib.Path(cloudinit_file)
 
@@ -146,7 +145,7 @@ class CloudInit:
 def test_CloudInit_get_userdata_str():
     cloudinit = CloudInit()
     cloudinit.add_repo("osbuild", "osbuild.org")
-    cloudinit.add_user("admin", "foobar", "abc")
+    cloudinit.set_user("admin", "foobar", "abc")
     cloudinit.add_ssh_key_pair("pubkey", "privkey")
     cloudinit.add_ssh_config("target", "127.0.0.1", 2222, "admin")
     resulting_string = cloudinit.get_userdata_str()

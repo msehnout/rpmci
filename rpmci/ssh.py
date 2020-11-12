@@ -21,8 +21,9 @@ class SshKeys:
             self.public_key_str = f.read()
 
     def __del__(self):
-        os.unlink(self.private_key)
-        os.unlink(self.public_key)
+        #os.unlink(self.private_key)
+        #os.unlink(self.public_key)
+        pass
 
 
 class SshCommand:
@@ -36,7 +37,9 @@ class SshCommand:
             "-i", privkey_file,
             command
         ]
-        print(self.cmd)
 
-    def run(self):
-        subprocess.run(self.cmd, check=True)
+    def run(self) -> int:
+        cmd = " ".join(self.cmd)
+        logging.info(f"Running {cmd}")
+        res = subprocess.run(self.cmd, check=True)
+        return res.returncode
