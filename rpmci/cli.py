@@ -377,7 +377,11 @@ class CliRun:
     def run(self):
         """Run command"""
 
-        conf = Conf.load(sys.stdin)
+        if self._ctx.args.config is not None:
+            with open(self._ctx.args.config, "r") as f:
+                conf = Conf.load(f)
+        else:
+            conf = Conf.load(sys.stdin)
 
         self.ssh_keys = ssh.SshKeys(self.cache)
 
@@ -489,6 +493,12 @@ class Cli(contextlib.AbstractContextManager):
             description="Run RPM CI",
             help="Run RPM CI with a given configuration",
             prog=f"{self._parser.prog} run",
+        )
+        _cmd_run.add_argument(
+            "--config",
+            help="Path to configuration file",
+            metavar="PATH",
+            type=os.path.abspath,
         )
 
         return self._parser.parse_args(self._argv[1:])
