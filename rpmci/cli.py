@@ -15,7 +15,7 @@ import pathlib
 import sys
 import time
 
-from . import virt_docker, virt_qemu, ssh, cloudinit, repo_local_http
+from . import virt_docker, virt_qemu, ssh, cloudinit, repo_local_http, repo_existing_url
 
 
 class Conf:
@@ -238,10 +238,21 @@ class Conf:
 
             elif key == "dir_with_rpms":
                 conf[key] = data[key]
+            elif key == "existing_url":
+                conf[key] = {}
+                for subkey in data[key].keys():
+                    if subkey == "baseurl":
+                        conf[key][subkey] = data[key][subkey]
+                    else:
+                        raise cls._invalid_key(f"{path}/{key}", subkey)
+
+                for mandatory_subkey in ["baseurl"]:
+                    if mandatory_subkey not in conf[key]:
+                        raise cls._missing_key(f"{path}/{key}", mandatory_subkey)
             else:
                 raise cls._invalid_key(path, key)
 
-        for mandatory_subkey in ["provider", "dir_with_rpms"]:
+        for mandatory_subkey in ["provider"]:
             if mandatory_subkey not in conf:
                 raise cls._missing_key(path, "provider")
 
@@ -293,6 +304,11 @@ class CliRun:
                 "rpmci",
                 options["local_http"]["ip"],
                 options["local_http"]["port"]
+            )
+        elif provider == "existing_url":
+            return repo_existing_url.RepoExistingUrl(
+                name="rpmci",
+                baseurl=options["existing_url"]["baseurl"]
             )
         else:
             raise ValueError(f"Unknown RPM repo provider: {provider}")
