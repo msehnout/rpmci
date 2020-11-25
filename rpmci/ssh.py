@@ -41,5 +41,5 @@ class SshCommand:
     def run(self) -> int:
         cmd = " ".join(self.cmd)
         logging.info(f"Running {cmd}")
-        res = subprocess.run(self.cmd, check=True)
+        res = subprocess.run(self.cmd)
         return res.returncode
