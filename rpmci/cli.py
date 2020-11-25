@@ -15,7 +15,7 @@ import pathlib
 import sys
 import time
 
-from . import virt_docker, virt_qemu, ssh, cloudinit, repo_local_http, repo_existing_url
+from . import virt_docker, virt_qemu, ssh, cloudinit, repo_local_http, repo_existing_url, virt_ec2
 
 
 class Conf:
@@ -85,7 +85,22 @@ class Conf:
                     if mandatory_subkey not in conf[key]:
                         raise cls._missing_key(f"{path}/{key}", mandatory_subkey)
             elif key == "ec2":
-                pass
+                conf[key] = {}
+                for subkey in data[key]:
+                    if subkey == "access_key_id":
+                        conf[key][subkey] = data[key][subkey]
+                    elif subkey == "secret_access_key":
+                        conf[key][subkey] = data[key][subkey]
+                    elif subkey == "region_name":
+                        conf[key][subkey] = data[key][subkey]
+                    elif subkey == "image_id":
+                        conf[key][subkey] = data[key][subkey]
+                    else:
+                        raise cls._invalid_key(f"{path}/{key}", subkey)
+
+                for mandatory_subkey in ["access_key_id", "secret_access_key", "region_name", "image_id"]:
+                    if mandatory_subkey not in conf[key]:
+                        raise cls._missing_key(f"{path}/{key}", mandatory_subkey)
             else:
                 raise cls._invalid_key(path, key)
 
@@ -342,6 +357,19 @@ class CliRun:
                 options["qemu"]["ssh_port"],
                 cloudinit_iso_file=cloud_init.get_iso(self.cache, vm_name),
                 private_key_file=self.ssh_keys.private_key
+            )
+        elif vtype == "ec2":
+            cloud_init = cloudinit.CloudInit() \
+                .set_user("admin", "foobar", self.ssh_keys.public_key_str) \
+                .add_repo(self.rpm_repository.name, self.rpm_repository.baseurl)
+            userdata_str = cloud_init.get_userdata_str()
+            return virt_ec2.VirtEC2(
+                access_key_id=options["ec2"]["access_key_id"],
+                secret_access_key=options["ec2"]["secret_access_key"],
+                region_name=options["ec2"]["region_name"],
+                image_id=options["ec2"]["image_id"],
+                key_pair=self.ssh_keys,
+                userdata_str=userdata_str,
             )
         else:
             raise ValueError(f"Unknown virtualization type: {vtype}")
