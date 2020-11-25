@@ -375,15 +375,16 @@ class CliRun:
                         if res != 0:
                             raise RuntimeError(f"Target RPM installation failed: {res}")
 
-                    if "rpm" in conf.options["steering"]:
-                        res = steering.run(["sudo", "dnf", "install", conf.options["steering"]["rpm"], "-y"])
-                        if res != 0:
-                            raise RuntimeError(f"Steering RPM installation failed: {res}")
+                    if "steering" in conf.options:
+                        if "rpm" in conf.options["steering"]:
+                            res = steering.run(["sudo", "dnf", "install", conf.options["steering"]["rpm"], "-y"])
+                            if res != 0:
+                                raise RuntimeError(f"Steering RPM installation failed: {res}")
 
-                    if "invoke" in conf.options["steering"]:
-                        res = steering.run(conf.options["steering"]["invoke"])
-                        if res != 0:
-                            raise RuntimeError(f"Steering invocation failed: {res}")
+                        if "invoke" in conf.options["steering"]:
+                            res = steering.run(conf.options["steering"]["invoke"])
+                            if res != 0:
+                                raise RuntimeError(f"Steering invocation failed: {res}")
 
                     if "invoke" in conf.options["target"]:
                         res = target.run(conf.options["target"]["invoke"])
@@ -394,7 +395,11 @@ class CliRun:
                         if conf.options["test_invocation"]["machine"] == "steering":
                             res = steering.run(conf.options["test_invocation"]["invoke"])
                             if res != 0:
-                                raise RuntimeError(f"Running test in steering machine failed: {res}")
+                                logging.error(f"Running test in steering machine failed: {res}")
+                        elif conf.options["test_invocation"]["machine"] == "target":
+                            res = target.run(conf.options["test_invocation"]["invoke"])
+                            if res != 0:
+                                logging.error(f"Running test in target machine failed: {res}")
 
                     logging.info("Going to sleep for a while")
                     time.sleep(600)
