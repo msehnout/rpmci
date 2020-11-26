@@ -415,6 +415,7 @@ class CliRun:
         #     binaries in it. We sort them in ascending alphabetical order, so
         #     their execution order is fixed.
         #
+        res = 0
         with self.rpm_repository or contextlib.nullcontext():
             with target:
                 with steering or contextlib.nullcontext():
@@ -449,10 +450,7 @@ class CliRun:
                             if res != 0:
                                 logging.error(f"Running test in target machine failed: {res}")
 
-                    logging.info("Going to sleep for a while")
-                    time.sleep(600)
-
-        return 0
+        return res
 
 
 class Cli(contextlib.AbstractContextManager):
