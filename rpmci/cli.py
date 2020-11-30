@@ -13,7 +13,6 @@ import logging
 import os
 import pathlib
 import sys
-import time
 
 from . import virt_docker, virt_qemu, ssh, cloudinit, repo_local_http, repo_existing_url, virt_ec2
 

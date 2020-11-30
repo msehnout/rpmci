@@ -3,7 +3,6 @@ import logging
 import random
 import string
 import time
-from pathlib import Path
 from typing import Union, Any
 
 import boto3

@@ -15,6 +15,7 @@ import time
 
 
 class RepoLocalHttp(contextlib.AbstractContextManager):
+    """Provide RPM repository using local HTTP server."""
 
     def __init__(self, cache_dir, rpms_directory, repo_name, hostname, port):
         self.cache_dir = cache_dir
@@ -36,7 +37,7 @@ class RepoLocalHttp(contextlib.AbstractContextManager):
         repodir = f"{self.cache_dir}/repo"
         os.mkdir(repodir)
         # Copy RPMs
-        for directory, dirs, files in os.walk(rpms_directory):
+        for directory, _dirs, files in os.walk(rpms_directory):
             for rpm in files:
                 logging.info(f"Copying {directory}/{rpm} to {repodir}/{rpm}")
                 shutil.copyfile(f"{directory}/{rpm}", f"{repodir}/{rpm}")

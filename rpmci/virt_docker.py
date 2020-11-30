@@ -86,7 +86,7 @@ class VirtDocker(contextlib.AbstractContextManager):
         )) as proc:
             stdout, _stderr = proc.communicate()
             if proc.returncode != 0:
-                raise RuntimeError(f"Cannot run specified docker image: {self._exec_image}: {res}")
+                raise RuntimeError(f"Cannot run specified docker image: {self._exec_image}: {proc.returncode}")
 
         self._exec_ref = stdout.rstrip()
 
