@@ -15,289 +15,7 @@ import pathlib
 import sys
 
 from . import virt_docker, virt_qemu, ssh, cloudinit, repo_local_http, repo_existing_url, virt_ec2
-
-
-class Conf:
-    """RPMCI configuration"""
-
-    def __init__(self, options):
-        self.options = options
-
-    @staticmethod
-    def _invalid_key(path, key):
-        return RuntimeError(f"Invalid configuration key: {path}/{key}")
-
-    @staticmethod
-    def _invalid_value(path, key, value):
-        return RuntimeError(f"Invalid configuration value: {path}/{key}: {value}")
-
-    @staticmethod
-    def _missing_key(path, key):
-        return RuntimeError(f"Missing configuration key: {path}/{key}")
-
-    # pylint: disable=too-many-branches
-    @classmethod
-    def _load_virtualization(cls, path, data):
-        """Parse virtualization configuration"""
-
-        conf = {}
-
-        for key in data.keys():
-            if key == "type":
-                value = data[key]
-                if value not in ["docker", "qemu", "ec2"]:
-                    raise cls._invalid_value(path, key, value)
-                conf[key] = value
-
-            elif key == "docker":
-                conf[key] = {}
-                for subkey in data[key]:
-                    if subkey == "arguments":
-                        conf[key][subkey] = data[key][subkey]
-                    elif subkey == "image":
-                        conf[key][subkey] = data[key][subkey]
-                    elif subkey == "privileged":
-                        if not isinstance(data[key][subkey], bool):
-                            raise cls._invalid_value(
-                                f"{path}/docker",
-                                subkey,
-                                data[key][subkey],
-                            )
-                        conf[key][subkey] = data[key][subkey]
-                    else:
-                        raise cls._invalid_key(f"{path}/{key}", subkey)
-
-                if "image" not in conf[key]:
-                    raise cls._missing_key(f"{path}/{key}", "image")
-
-            elif key == "qemu":
-                conf[key] = {}
-                for subkey in data[key]:
-                    if subkey == "image":
-                        conf[key][subkey] = data[key][subkey]
-                    elif subkey == "ssh_port":
-                        conf[key][subkey] = data[key][subkey]
-                    else:
-                        raise cls._invalid_key(f"{path}/{key}", subkey)
-
-                for mandatory_subkey in ["image", "ssh_port"]:
-                    if mandatory_subkey not in conf[key]:
-                        raise cls._missing_key(f"{path}/{key}", mandatory_subkey)
-            elif key == "ec2":
-                conf[key] = {}
-                for subkey in data[key]:
-                    if subkey == "access_key_id":
-                        conf[key][subkey] = data[key][subkey]
-                    elif subkey == "secret_access_key":
-                        conf[key][subkey] = data[key][subkey]
-                    elif subkey == "region_name":
-                        conf[key][subkey] = data[key][subkey]
-                    elif subkey == "image_id":
-                        conf[key][subkey] = data[key][subkey]
-                    else:
-                        raise cls._invalid_key(f"{path}/{key}", subkey)
-
-                for mandatory_subkey in ["access_key_id", "secret_access_key", "region_name", "image_id"]:
-                    if mandatory_subkey not in conf[key]:
-                        raise cls._missing_key(f"{path}/{key}", mandatory_subkey)
-            else:
-                raise cls._invalid_key(path, key)
-
-        if "type" not in conf:
-            raise cls._missing_key(path, "type")
-        if conf["type"] not in conf:
-            raise cls._missing_key(path, conf["type"])
-
-        return conf
-
-    @classmethod
-    def _load_credentials(cls, path, data):
-        conf = {}
-
-        for key in data.keys():
-            if key == "aws":
-                conf[key] = {}
-                for subkey in data[key].keys():
-                    if subkey == "access-key-id":
-                        conf[key][subkey] = data[key][subkey]
-                    elif subkey == "secret-access-key":
-                        conf[key][subkey] = data[key][subkey]
-                    else:
-                        raise cls._invalid_key(f"{path}/{key}", subkey)
-            else:
-                raise cls._invalid_key(path, key)
-
-        if "virtualization" not in conf:
-            raise cls._missing_key(path, "virtualization")
-
-        return conf
-
-    @classmethod
-    def _load_steering(cls, path, data):
-        conf = {}
-
-        for key in data.keys():
-            if key == "invoke":
-                if not (
-                    isinstance(data[key], list) and
-                    all(isinstance(entry, str) for entry in data[key])
-                ):
-                    raise cls._invalid_value(
-                        path,
-                        key,
-                        data[key],
-                    )
-                conf[key] = data[key]
-            elif key == "rpm":
-                conf[key] = data[key]
-            elif key == "tests":
-                conf[key] = {}
-                for subkey in data[key].keys():
-                    if subkey == "directory":
-                        conf[key][subkey] = data[key][subkey]
-                    elif subkey == "provision":
-                        conf[key][subkey] = data[key][subkey]
-                    else:
-                        raise cls._invalid_key(f"{path}/{key}", subkey)
-            elif key == "virtualization":
-                conf["virtualization"] = cls._load_virtualization(
-                    f"{path}/virtualization",
-                    data[key],
-                )
-            else:
-                raise cls._invalid_key(path, key)
-
-        if "virtualization" not in conf:
-            raise cls._missing_key(path, "virtualization")
-
-        return conf
-
-    @classmethod
-    def _load_target(cls, path, data):
-        conf = {}
-
-        for key in data.keys():
-            if key == "invoke":
-                if not (
-                    isinstance(data[key], list) and
-                    all(isinstance(entry, str) for entry in data[key])
-                ):
-                    raise cls._invalid_value(
-                        path,
-                        key,
-                        data[key],
-                    )
-                conf[key] = data[key]
-            elif key == "rpm":
-                conf[key] = data[key]
-            elif key == "virtualization":
-                conf["virtualization"] = cls._load_virtualization(
-                    f"{path}/virtualization",
-                    data[key],
-                )
-            else:
-                raise cls._invalid_key(path, key)
-
-        if "virtualization" not in conf:
-            raise cls._missing_key(path, "virtualization")
-
-        return conf
-
-    @classmethod
-    def _load_test_invocation(cls, path, data):
-        conf = {}
-
-        for key in data.keys():
-            if key == "invoke":
-                if not (
-                        isinstance(data[key], list) and
-                        all(isinstance(entry, str) for entry in data[key])
-                ):
-                    raise cls._invalid_value(
-                        path,
-                        key,
-                        data[key],
-                    )
-                conf[key] = data[key]
-            elif key == "machine":
-                conf[key] = data[key]
-            else:
-                raise cls._invalid_key(path, key)
-
-        if "invoke" not in conf:
-            raise cls._missing_key(path, "invoke")
-
-        return conf
-
-    @classmethod
-    def _load_rpm_repo(cls, path, data):
-        conf = {}
-
-        for key in data.keys():
-            if key == "provider":
-                conf[key] = data[key]
-            elif key == "local_http":
-                conf[key] = {}
-                for subkey in data[key].keys():
-                    if subkey == "ip":
-                        conf[key][subkey] = data[key][subkey]
-                    elif subkey == "port":
-                        conf[key][subkey] = data[key][subkey]
-                    else:
-                        raise cls._invalid_key(f"{path}/{key}", subkey)
-
-                for mandatory_subkey in ["ip", "port"]:
-                    if mandatory_subkey not in conf[key]:
-                        raise cls._missing_key(f"{path}/{key}", mandatory_subkey)
-
-            elif key == "dir_with_rpms":
-                conf[key] = data[key]
-            elif key == "existing_url":
-                conf[key] = {}
-                for subkey in data[key].keys():
-                    if subkey == "baseurl":
-                        conf[key][subkey] = data[key][subkey]
-                    else:
-                        raise cls._invalid_key(f"{path}/{key}", subkey)
-
-                for mandatory_subkey in ["baseurl"]:
-                    if mandatory_subkey not in conf[key]:
-                        raise cls._missing_key(f"{path}/{key}", mandatory_subkey)
-            else:
-                raise cls._invalid_key(path, key)
-
-        for mandatory_subkey in ["provider"]:
-            if mandatory_subkey not in conf:
-                raise cls._missing_key(path, "provider")
-
-        return conf
-
-    @classmethod
-    def load(cls, filp):
-        """Parse configuration"""
-
-        conf = {}
-        data = json.load(filp)
-        path = ""
-
-        for key in data.keys():
-            if key == "credentials":
-                conf[key] = cls._load_credentials(f"{path}/{key}", data[key])
-            elif key == "steering":
-                conf[key] = cls._load_steering(f"{path}/{key}", data[key])
-            elif key == "target":
-                conf[key] = cls._load_target(f"{path}/{key}", data[key])
-            elif key == "rpm_repo":
-                conf[key] = cls._load_rpm_repo(f"{path}/{key}", data[key])
-            elif key == "test_invocation":
-                conf[key] = cls._load_test_invocation(f"{path}/{key}", data[key])
-            else:
-                raise cls._invalid_key(path, key)
-
-        if "target" not in conf:
-            raise cls._missing_key(path, "target")
-
-        return cls(conf)
+from .configuration import Conf
 
 
 class CliRun:
@@ -327,7 +45,7 @@ class CliRun:
         else:
             raise ValueError(f"Unknown RPM repo provider: {provider}")
 
-    def _virtualize(self, options, target_options=None):
+    def _virtualize(self, options, target_options=None, credentials=None):
         """
         Parameters
         ----------
@@ -363,9 +81,9 @@ class CliRun:
                 .add_repo(self.rpm_repository.name, self.rpm_repository.baseurl)
             userdata_str = cloud_init.get_userdata_str()
             return virt_ec2.VirtEC2(
-                access_key_id=options["ec2"]["access_key_id"],
-                secret_access_key=options["ec2"]["secret_access_key"],
-                region_name=options["ec2"]["region_name"],
+                access_key_id=credentials["aws"]["access_key_id"],
+                secret_access_key=credentials["aws"]["secret_access_key"],
+                region_name=credentials["aws"]["region_name"],
                 image_id=options["ec2"]["image_id"],
                 key_pair=self.ssh_keys,
                 userdata_str=userdata_str,
@@ -390,12 +108,14 @@ class CliRun:
             )
 
         steering = None
-        target = self._virtualize(conf.options["target"]["virtualization"])
+        credentials = conf.options.get("credentials")
+        target = self._virtualize(conf.options["target"]["virtualization"], credentials=credentials)
 
         if "steering" in conf.options:
             steering = self._virtualize(
                 conf.options["steering"]["virtualization"],
-                conf.options["target"]["virtualization"]
+                conf.options["target"]["virtualization"],
+                credentials=credentials
             )
 
         #
