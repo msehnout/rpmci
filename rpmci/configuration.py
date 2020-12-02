@@ -49,11 +49,11 @@ VIRTUALIZATION = {
         "ec2": {
             "type": "object",
             "properties": {
-                "image_id": {"type": "string"}  # ,
-                # "instance_type": {"type": "string"}
+                "image_id": {"type": "string"},
+                "instance_type": {"type": "string"}
             },
             "additionalProperties": False,
-            "minProperties": 1
+            "minProperties": 2
         },
         "docker": {
             "type": "object",
@@ -179,8 +179,8 @@ AWS_EXAMPLE = {
         "virtualization": {
             "type": "ec2",
             "ec2": {
-                "image_id": "ami-123456789"  # ,
-                # "instance_type": "t2.small"
+                "image_id": "ami-123456789",
+                "instance_type": "t2.small"
             }
         },
         "rpm": "osbuild-composer-tests",

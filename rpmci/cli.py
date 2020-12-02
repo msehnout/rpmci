@@ -85,6 +85,7 @@ class CliRun:
                 secret_access_key=credentials["aws"]["secret_access_key"],
                 region_name=credentials["aws"]["region_name"],
                 image_id=options["ec2"]["image_id"],
+                instance_type=options["ec2"]["instance_type"],
                 key_pair=self.ssh_keys,
                 userdata_str=userdata_str,
             )

@@ -15,6 +15,7 @@ class VirtEC2(contextlib.AbstractContextManager):
                  secret_access_key: str,
                  region_name: str,
                  image_id: str,
+                 instance_type: str,
                  key_pair: SshKeys,
                  userdata_str: str
                  ):
@@ -33,6 +34,7 @@ class VirtEC2(contextlib.AbstractContextManager):
         self.security_group: Union[Any, None] = None
         self.ec2_keypair_name: Union[str, None] = None
         self.image_id: str = image_id
+        self.instance_type: str = instance_type
         self.instance: Union[Any, None] = None
 
     def __enter__(self):
@@ -76,12 +78,11 @@ class VirtEC2(contextlib.AbstractContextManager):
     def _create_ec2_instance(self):
         """Run an instance in EC2 and configure it using the cloud-init file."""
         self._log_aws_create_artifact("EC2 instance")
-        instances = self.ec2.create_instances(ImageId=self.image_id,  # ami-0911ed36164460ba6
+        instances = self.ec2.create_instances(ImageId=self.image_id,
                                               KeyName=self.ec2_keypair_name,
                                               MinCount=1,
                                               MaxCount=1,
-                                              InstanceType='t2.small',  # TODO: make this configurable
-                                              # TODO: bigger machine for target because of disk images
+                                              InstanceType=self.instance_type,
                                               SecurityGroups=[self.sg_name],
                                               UserData=self.userdata_str)
         instances[0].wait_until_running()
