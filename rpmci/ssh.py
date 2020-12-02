@@ -25,7 +25,7 @@ class SshKeys:
 
 
 class SshCommand:
-    def __init__(self, user, host, port, privkey_file, command, **options):
+    def __init__(self, user, host, port, privkey_file, command, stdin, **options):
         opts = [["-o", f"{key}={value}"] for key, value in options.items()]
         flat_opts = [opt for sublist in opts for opt in sublist]
         self.cmd = ["ssh", f"{user}@{host}"]
@@ -35,9 +35,14 @@ class SshCommand:
             "-i", privkey_file,
             command
         ]
+        self.stdin = stdin
 
     def run(self) -> int:
         cmd = " ".join(self.cmd)
-        logging.info(f"Running {cmd}")
-        res = subprocess.run(self.cmd)
+        if self.stdin is not None:
+            logging.info(f"Running {cmd} with configuration passed to STDIN")
+            res = subprocess.run(self.cmd, input=self.stdin, encoding="utf-8")
+        else:
+            logging.info(f"Running {cmd}")
+            res = subprocess.run(self.cmd)
         return res.returncode

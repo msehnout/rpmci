@@ -47,9 +47,9 @@ class VirtEC2(contextlib.AbstractContextManager):
         self._delete_ec2_security_group()
         self._delete_ec2_keypair()
 
-    def run(self, args) -> int:
+    def run(self, args, stdin=None) -> int:
         return SshCommand("admin", f"{self.instance.public_ip_address}", 22, self.key_pair.private_key, " ".join(args),
-                          StrictHostKeyChecking="no", UserKnownHostsFile="/dev/null").run()
+                          stdin, StrictHostKeyChecking="no", UserKnownHostsFile="/dev/null").run()
 
     def _create_ec2_keypair(self):
         self.ec2_keypair_name = f"rpmci-keypair-{self.test_id}"
@@ -88,15 +88,10 @@ class VirtEC2(contextlib.AbstractContextManager):
         instances[0].wait_until_running()
         self.instance = self.ec2.Instance(id=instances[0].id)
         for _ in range(20):
-            ssh_cmd = SshCommand(user="admin",
-                                 host=f"{self.instance.public_ip_address}",
-                                 port=22,
-                                 privkey_file=self.key_pair.private_key,
-                                 command="systemctl is-system-running",
-                                 StrictHostKeyChecking="no",
-                                 UserKnownHostsFile="/dev/null",
-                                 ConnectTimeout="20"
-                                 )
+            ssh_cmd = SshCommand(user="admin", host=f"{self.instance.public_ip_address}", port=22,
+                                 privkey_file=self.key_pair.private_key, command="systemctl is-system-running",
+                                 stdin=None, StrictHostKeyChecking="no", UserKnownHostsFile="/dev/null",
+                                 ConnectTimeout="20")
             return_code = ssh_cmd.run()
             if return_code == 0:
                 logging.info("SSH success")

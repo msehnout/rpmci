@@ -119,6 +119,11 @@ class CliRun:
                 credentials=credentials
             )
 
+        if "guest_features" in conf.options["target"]:
+            stdin = json.dumps(conf.options["target"]["guest_features"])
+        else:
+            stdin = None
+
         #
         # Instantiate the target machine, followed by the steering machine, if
         # requested. Once the machines are up, we execute the test procedure:
@@ -151,12 +156,12 @@ class CliRun:
                                 raise RuntimeError(f"Steering RPM installation failed: {res}")
 
                         if "invoke" in conf.options["steering"]:
-                            res = steering.run(conf.options["steering"]["invoke"])
+                            res = steering.run(conf.options["steering"]["invoke"], stdin)
                             if res != 0:
                                 raise RuntimeError(f"Steering invocation failed: {res}")
 
                     if "invoke" in conf.options["target"]:
-                        res = target.run(conf.options["target"]["invoke"])
+                        res = target.run(conf.options["target"]["invoke"], stdin)
                         if res != 0:
                             raise RuntimeError(f"Target invocation failed: {res}")
 

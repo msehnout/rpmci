@@ -126,7 +126,7 @@ class VirtDocker(contextlib.AbstractContextManager):
         self._container_stop()
         self._image_release()
 
-    def run(self, args):
+    def run(self, args, stdin=None):
         """Execute command in container"""
 
         cmd = [

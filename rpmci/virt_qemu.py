@@ -33,6 +33,6 @@ class VirtQemu(contextlib.AbstractContextManager):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.vm_process.kill()
 
-    def run(self, args) -> int:
-        return SshCommand("admin", "127.0.0.1", self.ssh_port, self.private_key_file, " ".join(args),
-                   StrictHostKeyChecking="no", UserKnownHostsFile="/dev/null").run()
+    def run(self, args, stdin=None) -> int:
+        return SshCommand("admin", "127.0.0.1", self.ssh_port, self.private_key_file, " ".join(args), stdin,
+                          StrictHostKeyChecking="no", UserKnownHostsFile="/dev/null").run()

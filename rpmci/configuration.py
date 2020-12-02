@@ -33,7 +33,8 @@ MACHINE = {
             "items": {
                 "type": "string"
             }
-        }
+        },
+        "guest_features": {"type": "object"},
     },
     "required": ["virtualization"],
     "additionalProperties": False
@@ -75,6 +76,14 @@ VIRTUALIZATION = {
     },
     "required": ["type"],
     "additionalProperties": False
+}
+
+GUEST_FEATURES = {
+    "type": "object",
+    "properties": {
+        "credentials": {"type": "object"},
+        "kvm": {"type": "boolean"}
+    }
 }
 
 CREDENTIALS = {
@@ -147,9 +156,14 @@ class Conf:
         validate(data["target"]["virtualization"], VIRTUALIZATION, format_checker=draft7)
 
         # Optional parameters
+        if "guest_features" in data["target"]:
+            validate(data["target"]["guest_features"], GUEST_FEATURES, format_checker=draft7)
+
         if "steering" in data:
             validate(data["steering"], MACHINE, format_checker=draft7)
             validate(data["steering"]["virtualization"], VIRTUALIZATION, format_checker=draft7)
+            if "guest_features" in data["steering"]:
+                validate(data["steering"]["guest_features"], GUEST_FEATURES, format_checker=draft7)
 
         if "credentials" in data:
             validate(data["credentials"], CREDENTIALS, format_checker=draft7)
@@ -187,7 +201,16 @@ AWS_EXAMPLE = {
         "invoke": [
             "/usr/libexec/tests/osbuild-composer/api.sh",
             "/usr/libexec/tests/osbuild-composer/base_tests.sh"
-        ]
+        ],
+        "guest_features": {
+            "credentials": {
+                "aws": {
+                    "access_key_id": "MYSUPERSECRETACCESSKEYID",
+                    "secret_access_key": "MYSUPERSECRETACCESSKEY",
+                    "region_name": "xx-region-1"
+                }
+            }
+        }
     },
     "rpm_repo": {
         "provider": "existing_url",
