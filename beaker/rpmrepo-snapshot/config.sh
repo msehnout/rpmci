@@ -12,7 +12,7 @@
 
 set -e
 
-RPMREPO_DATE="20201028"
+RPMREPO_DATE="20201010"
 RPMREPO_DISTRO="Fedora-32"
 
 RPMREPO_AWS_ACCESS_KEY_ID=""
@@ -49,46 +49,61 @@ END
 }
 
 taskset_fedora_release() {
-        VERSION="$1"
-        ARCH="$2"
+        MIRROR_PATH="$1"
+        VERSION="$2"
+        ARCH="$3"
 
         task_rpmrepo \
                 "anon" \
                 "f${VERSION}" \
                 "f${VERSION}-${ARCH}-fedora-${RPMREPO_DATE}" \
-                "https://dl01.fedoraproject.org/pub/fedora/linux/releases/${VERSION}/Everything/${ARCH}/os/"
+                "https://dl01.fedoraproject.org/pub/${MIRROR_PATH}/releases/${VERSION}/Everything/${ARCH}/os/"
         task_rpmrepo \
                 "anon" \
                 "f${VERSION}" \
                 "f${VERSION}-${ARCH}-fedora-modular-${RPMREPO_DATE}" \
-                "https://dl01.fedoraproject.org/pub/fedora/linux/releases/${VERSION}/Modular/${ARCH}/os/"
+                "https://dl01.fedoraproject.org/pub/${MIRROR_PATH}/releases/${VERSION}/Modular/${ARCH}/os/"
 }
 
 taskset_fedora_updates() {
-        VERSION="$1"
-        ARCH="$2"
+        MIRROR_PATH="$1"
+        VERSION="$2"
+        ARCH="$3"
 
         task_rpmrepo \
                 "anon" \
                 "f${VERSION}" \
                 "f${VERSION}-${ARCH}-updates-released-${RPMREPO_DATE}" \
-                "https://dl01.fedoraproject.org/pub/fedora/linux/updates/${VERSION}/Everything/${ARCH}/"
+                "https://dl01.fedoraproject.org/pub/${MIRROR_PATH}/updates/${VERSION}/Everything/${ARCH}/"
         task_rpmrepo \
                 "anon" \
                 "f${VERSION}" \
                 "f${VERSION}-${ARCH}-updates-released-modular-${RPMREPO_DATE}" \
-                "https://dl01.fedoraproject.org/pub/fedora/linux/updates/${VERSION}/Modular/${ARCH}/"
+                "https://dl01.fedoraproject.org/pub/${MIRROR_PATH}/updates/${VERSION}/Modular/${ARCH}/"
 }
 
 taskset_fedora_devel() {
-        VERSION="$1"
-        ARCH="$2"
+        MIRROR_PATH="$1"
+        VERSION="$2"
+        ARCH="$3"
 
         task_rpmrepo \
                 "anon" \
                 "f${VERSION}" \
                 "f${VERSION}-${ARCH}-devel-${RPMREPO_DATE}" \
-                "https://dl01.fedoraproject.org/pub/fedora/linux/development/${VERSION}/Everything/${ARCH}/os/"
+                "https://dl01.fedoraproject.org/pub/${MIRROR_PATH}/development/${VERSION}/Everything/${ARCH}/os/"
+}
+
+taskset_fedora_rawhide() {
+        MIRROR_PATH="$1"
+        VERSION="$2"
+        ARCH="$3"
+
+        task_rpmrepo \
+                "anon" \
+                "f${VERSION}" \
+                "f${VERSION}-${ARCH}-rawhide-${RPMREPO_DATE}" \
+                "https://dl01.fedoraproject.org/pub/${MIRROR_PATH}/development/rawhide/Everything/${ARCH}/os/"
 }
 
 taskset_rhel8_release() {
@@ -121,6 +136,18 @@ taskset_rhel8_nightly() {
                 "el8" \
                 "el8-${ARCH}-appstream-8.${VERSION}.0.n-${RPMREPO_DATE}" \
                 "http://download.eng.rdu.redhat.com/rhel-8/nightly/RHEL-8/latest-RHEL-8.${VERSION}/compose/AppStream/${ARCH}/os/"
+}
+
+
+taskset_rhel8_brew() {
+        VERSION="$1"
+        ARCH="$2"
+
+        task_rpmrepo \
+                "psi" \
+                "el8" \
+                "el8-${ARCH}-brew-8-${VERSION}-${RPMREPO_DATE}" \
+                "http://download.eng.bos.redhat.com/brewroot/repos/brew-rhel-8-${VERSION}/latest/${ARCH}/"
 }
 
 recipeset_recipe_open() {
@@ -180,41 +207,68 @@ job_close() {
 END
 }
 
-job_open "Everything"
+job_open "Fixup #1"
 
-recipeset_recipe_open "f31"
-taskset_fedora_release 31 x86_64
-taskset_fedora_updates 31 x86_64
-recipeset_recipe_close
-
+#recipeset_recipe_open "f31"
+#taskset_fedora_release "fedora/linux" 31 "x86_64"
+#taskset_fedora_updates "fedora/linux" 31 "x86_64"
+#recipeset_recipe_close
+#
 recipeset_recipe_open "f32"
-taskset_fedora_release 32 x86_64
-taskset_fedora_updates 32 x86_64
+#taskset_fedora_release "fedora/linux" 32 "aarch64"
+#taskset_fedora_release "fedora/linux" 32 "x86_64"
+#taskset_fedora_release "fedora-secondary" 32 "ppc64le"
+#taskset_fedora_release "fedora-secondary" 32 "s390x"
+taskset_fedora_updates "fedora/linux" 32 "aarch64"
+taskset_fedora_updates "fedora/linux" 32 "x86_64"
+taskset_fedora_updates "fedora-secondary" 32 "ppc64le"
+taskset_fedora_updates "fedora-secondary" 32 "s390x"
 recipeset_recipe_close
-
+#
 recipeset_recipe_open "f33"
-taskset_fedora_devel 33 x86_64
+#taskset_fedora_release "fedora/linux" 33 "aarch64"
+#taskset_fedora_release "fedora/linux" 33 "x86_64"
+#taskset_fedora_release "fedora-secondary" 33 "ppc64le"
+#taskset_fedora_release "fedora-secondary" 33 "s390x"
+taskset_fedora_updates "fedora/linux" 33 "aarch64"
+taskset_fedora_updates "fedora/linux" 33 "x86_64"
+taskset_fedora_updates "fedora-secondary" 33 "ppc64le"
+taskset_fedora_updates "fedora-secondary" 33 "s390x"
 recipeset_recipe_close
-
+#
+recipeset_recipe_open "f34"
+taskset_fedora_rawhide "fedora/linux" 34 "aarch64"
+taskset_fedora_rawhide "fedora/linux" 34 "x86_64"
+taskset_fedora_rawhide "fedora-secondary" 34 "ppc64le"
+taskset_fedora_rawhide "fedora-secondary" 34 "s390x"
+recipeset_recipe_close
+#
 recipeset_recipe_open "rhel8.2.r"
-taskset_rhel8_release 2 x86_64
-taskset_rhel8_release 2 aarch64
-taskset_rhel8_release 2 ppc64le
-taskset_rhel8_release 2 s390x
+taskset_rhel8_release 2 "aarch64"
+taskset_rhel8_release 2 "ppc64le"
+taskset_rhel8_release 2 "s390x"
+taskset_rhel8_release 2 "x86_64"
 recipeset_recipe_close
-
-recipeset_recipe_open "rhel8.3.n"
-taskset_rhel8_nightly 3 x86_64
-taskset_rhel8_nightly 3 aarch64
-taskset_rhel8_nightly 3 ppc64le
-taskset_rhel8_nightly 3 s390x
+#
+recipeset_recipe_open "rhel8.3.r"
+taskset_rhel8_release 3 "aarch64"
+taskset_rhel8_release 3 "ppc64le"
+taskset_rhel8_release 3 "s390x"
+taskset_rhel8_release 3 "x86_64"
 recipeset_recipe_close
-
+#
 recipeset_recipe_open "rhel8.4.n"
-taskset_rhel8_nightly 4 x86_64
-taskset_rhel8_nightly 4 aarch64
-taskset_rhel8_nightly 4 ppc64le
-taskset_rhel8_nightly 4 s390x
+taskset_rhel8_nightly 4 "aarch64"
+taskset_rhel8_nightly 4 "ppc64le"
+taskset_rhel8_nightly 4 "s390x"
+taskset_rhel8_nightly 4 "x86_64"
+recipeset_recipe_close
+#
+recipeset_recipe_open "rhel8-brew-stage"
+taskset_rhel8_brew stage "aarch64"
+taskset_rhel8_brew stage "ppc64le"
+taskset_rhel8_brew stage "s390x"
+taskset_rhel8_brew stage "x86_64"
 recipeset_recipe_close
 
 job_close
